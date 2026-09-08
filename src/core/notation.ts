@@ -9,10 +9,12 @@
  * '#' 以降は行コメント。空行は無視。
  */
 import type { DroppablePieceType, Move, Pos } from './types.ts';
-import { BOARD_SIZE } from './types.ts';
+import { BOARD_SIZE } from './rules.ts';
 
-const DROP_RE = /^([PRB])\*([0-5])([0-5])$/i;
-const MOVE_RE = /^([0-5])([0-5])-([0-5])([0-5])$/;
+/** 盤の広さから座標1桁ぶんのパターンを作る（BOARD_SIZE を変えても追従する）。 */
+const DIGIT = `[0-${BOARD_SIZE - 1}]`;
+const DROP_RE = new RegExp(`^([PRB])\\*(${DIGIT})(${DIGIT})$`, 'i');
+const MOVE_RE = new RegExp(`^(${DIGIT})(${DIGIT})-(${DIGIT})(${DIGIT})$`);
 
 function toDigit(text: string): number {
   const value = Number.parseInt(text, 10);

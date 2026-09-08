@@ -33,39 +33,50 @@ import {
   samePos,
   unpromote,
 } from './board.ts';
-import { computeFlips, flipPiece } from './flip.ts';
+import type { ChainResult } from './flip.ts';
+import { simulateDrop } from './flip.ts';
 import { destinationsFrom, generateMoves } from './moves.ts';
-
-/** 同一局面がこの回数出現したら駒数判定で決着。 */
-export const REPETITION_LIMIT = 4;
-
-/** 両者が連続でこの回数パスしたら駒数判定で決着。 */
-export const PASS_LIMIT = 2;
+import {
+  INITIAL_HAND,
+  INITIAL_KING_COL_GOTE,
+  INITIAL_KING_COL_SENTE,
+  BOARD_SIZE,
+  PASS_LIMIT,
+  REPETITION_LIMIT,
+} from './rules.ts';
 
 const PLAYING: GameResult = { kind: 'playing' };
+
+/** 反転が起きなかったときの MoveOutcome の共通部分。 */
+const NO_FLIPS = { flips: [], flipSteps: [], chainCount: 0 } as const;
 
 // ---------------------------------------------------------------------------
 // 初期局面
 // ---------------------------------------------------------------------------
 
-/** 初期盤面。先手: 玉(5,2) 歩(4,2) / 後手: 玉(0,3) 歩(1,3) */
+/**
+ * 初期盤面。6x6 なら 先手: 玉(5,2) 歩(4,2) / 後手: 玉(0,3) 歩(1,3)。
+ * 盤の広さ（rules.ts の BOARD_SIZE）を変えても同じ形になるよう導出している。
+ */
 export function initialBoard(): Board {
   const board = emptyBoard().slice();
   const place = (row: number, col: number, piece: Piece): void => {
     board[indexOf({ row, col })] = piece;
   };
-  place(5, 2, { type: 'K', owner: 'sente' });
-  place(4, 2, { type: 'P', owner: 'sente' });
-  place(0, 3, { type: 'K', owner: 'gote' });
-  place(1, 3, { type: 'P', owner: 'gote' });
+  const senteCol = INITIAL_KING_COL_SENTE;
+  const goteCol = INITIAL_KING_COL_GOTE;
+  place(BOARD_SIZE - 1, senteCol, { type: 'K', owner: 'sente' });
+  place(BOARD_SIZE - 2, senteCol, { type: 'P', owner: 'sente' });
+  place(0, goteCol, { type: 'K', owner: 'gote' });
+  place(1, goteCol, { type: 'P', owner: 'gote' });
   return board;
 }
 
-/** 初期持ち駒。両者とも 歩3・飛1・角1。 */
+/** 初期持ち駒。既定は両者とも 歩3・飛1・角1（rules.ts の INITIAL_HAND）。 */
 export function initialHands(): Hands {
   return {
-    sente: { ...emptyHand(), P: 3, R: 1, B: 1 },
-    gote: { ...emptyHand(), P: 3, R: 1, B: 1 },
+    sente: { ...emptyHand(), ...INITIAL_HAND },
+    gote: { ...emptyHand(), ...INITIAL_HAND },
   };
 }
 
@@ -81,6 +92,8 @@ export function initialGameState(): GameState {
     ply: 0,
     consecutivePasses: 0,
     repetition: { [positionKey(board, hands, turn)]: 1 },
+    lastChainCount: 0,
+    maxChainCount: { sente: 0, gote: 0 },
     result: PLAYING,
   };
 }
@@ -104,6 +117,8 @@ export function createGameState(params: {
     ply: params.ply ?? 0,
     consecutivePasses: params.consecutivePasses ?? 0,
     repetition: { [positionKey(board, hands, turn)]: 1 },
+    lastChainCount: 0,
+    maxChainCount: { sente: 0, gote: 0 },
     result: params.result ?? PLAYING,
   };
 }
@@ -228,38 +243,48 @@ function applyPass(state: GameState): MoveOutcome {
     turn: opponentOf(state.turn),
     ply: state.ply + 1,
     consecutivePasses,
+    lastChainCount: 0,
   };
 
   if (consecutivePasses >= PASS_LIMIT) {
     // 両者が連続でパス → 盤上の駒数が多い方の勝ち
-    return { state: finish(base, resultByPieceCount(state.board, 'pass_count')), flips: [], captured: null };
+    return {
+      state: finish(base, resultByPieceCount(state.board, 'pass_count')),
+      ...NO_FLIPS,
+      captured: null,
+    };
   }
-  return { state: registerPosition(base), flips: [], captured: null };
+  return { state: registerPosition(base), ...NO_FLIPS, captured: null };
 }
 
 function applyDrop(state: GameState, piece: 'P' | 'R' | 'B', to: Pos): MoveOutcome {
   const color = state.turn;
-  const flips = computeFlips(state.board, to, piece, color);
 
-  const board = state.board.slice();
-  board[indexOf(to)] = { type: piece, owner: color }; // 打つときは常に不成
-  for (const pos of flips) {
-    const target = board[indexOf(pos)];
-    if (!target) continue;
-    board[indexOf(pos)] = flipPiece(target, color);
-  }
+  // 打った駒を置き、反転が止まるまで連鎖を解決する
+  const chain: ChainResult = simulateDrop(state.board, to, piece, color);
 
   const hands = handWithRemoved(state.hands, color, piece);
   const next: GameState = {
     ...state,
-    board,
+    board: chain.board,
     hands,
     turn: opponentOf(color),
     ply: state.ply + 1,
     consecutivePasses: 0,
+    lastChainCount: chain.chainCount,
+    maxChainCount: {
+      ...state.maxChainCount,
+      [color]: Math.max(state.maxChainCount[color], chain.chainCount),
+    },
   };
 
-  return { state: registerPosition(next), flips, captured: null };
+  return {
+    state: registerPosition(next),
+    flips: chain.flips,
+    flipSteps: chain.steps,
+    chainCount: chain.chainCount,
+    captured: null,
+  };
 }
 
 function applyBoardMove(state: GameState, from: Pos, to: Pos): MoveOutcome {
@@ -284,9 +309,10 @@ function applyBoardMove(state: GameState, from: Pos, to: Pos): MoveOutcome {
         turn: opponentOf(color),
         ply: state.ply + 1,
         consecutivePasses: 0,
+        lastChainCount: 0,
         result: { kind: 'win', winner: color, reason: 'king_captured' } satisfies GameResult,
       };
-      return { state: finished, flips: [], captured };
+      return { state: finished, ...NO_FLIPS, captured };
     }
     const base = unpromote(captured.type); // 成駒は不成に戻る
     if (!isDroppableType(base)) throw new Error(`持ち駒にできない駒: ${captured.type}`);
@@ -300,10 +326,11 @@ function applyBoardMove(state: GameState, from: Pos, to: Pos): MoveOutcome {
     turn: opponentOf(color),
     ply: state.ply + 1,
     consecutivePasses: 0,
+    lastChainCount: 0,
   };
 
-  // 「動かす」では反転しない
-  return { state: registerPosition(next), flips: [], captured };
+  // 「動かす」では反転しない（連鎖も起きない）
+  return { state: registerPosition(next), ...NO_FLIPS, captured };
 }
 
 /**
@@ -325,11 +352,22 @@ function registerPosition(state: GameState): GameState {
 // 参照用ヘルパー
 // ---------------------------------------------------------------------------
 
-/** 打つ前のプレビュー用。この手を打ったら裏返るマスを返す。 */
-export function previewFlips(state: GameState, piece: 'P' | 'R' | 'B', to: Pos): Pos[] {
-  if (state.result.kind !== 'playing') return [];
-  if (pieceAt(state.board, to) !== null) return [];
-  return computeFlips(state.board, to, piece, state.turn);
+/**
+ * 打つ前のプレビュー用。この手を打ったら何が起きるかを、
+ * **連鎖の最終結果まで** 返す。
+ *
+ * 1段目だけ見せると実際に打った後の盤面と食い違うので、UI は必ずこれを使うこと。
+ */
+export function previewDrop(state: GameState, piece: 'P' | 'R' | 'B', to: Pos): ChainResult {
+  if (state.result.kind !== 'playing' || pieceAt(state.board, to) !== null) {
+    return { board: state.board, steps: [], chainCount: 0, flips: [] };
+  }
+  return simulateDrop(state.board, to, piece, state.turn);
+}
+
+/** 打つ前のプレビュー用。裏返るマスだけが欲しいときの短縮版（全段ぶん）。 */
+export function previewFlips(state: GameState, piece: 'P' | 'R' | 'B', to: Pos): readonly Pos[] {
+  return previewDrop(state, piece, to).flips;
 }
 
 /** 対局が終わっているか。 */

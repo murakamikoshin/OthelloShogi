@@ -12,7 +12,7 @@ import type {
   Pos,
   Square,
 } from './types.ts';
-import { BOARD_SIZE, SQUARE_COUNT } from './types.ts';
+import { BOARD_SIZE, SQUARE_COUNT } from './rules.ts';
 
 /** 相手の色を返す。 */
 export function opponentOf(color: Color): Color {

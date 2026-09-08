@@ -36,7 +36,8 @@ const KANJI: Record<PieceType, string> = {
 
 function renderBoard(board: Board): string {
   const lines: string[] = [];
-  lines.push('     c0  c1  c2  c3  c4  c5');
+  const header = Array.from({ length: BOARD_SIZE }, (_, col) => ` c${col} `).join('');
+  lines.push(`    ${header}`);
   for (let row = 0; row < BOARD_SIZE; row += 1) {
     const cells: string[] = [];
     for (let col = 0; col < BOARD_SIZE; col += 1) {
@@ -100,6 +101,9 @@ function printState(state: GameState): void {
   console.log(renderHands(state));
   console.log(`盤上の駒数: 先手 ${counts.sente} / 後手 ${counts.gote}`);
   console.log(`手番: ${state.turn === 'sente' ? '先手' : '後手'}  (${state.ply} 手目まで進行)`);
+  console.log(
+    `最大連鎖数: 先手 ${state.maxChainCount.sente} / 後手 ${state.maxChainCount.gote}`,
+  );
   console.log(`状態: ${renderResult(state.result)}`);
 }
 
@@ -152,15 +156,21 @@ function main(): void {
     const header = `${index + 1} 手目: ${formatMove(move)}  (${describeMove(move)})`;
     if (showSteps) {
       console.log(`\n--- ${header} ---`);
-      if (outcome.flips.length > 0) {
-        console.log(`反転: ${outcome.flips.map(formatPos).join(' ')}`);
+      if (outcome.chainCount > 0) {
+        console.log(`${outcome.chainCount} 連鎖:`);
+        outcome.flipSteps.forEach((step, level) => {
+          console.log(`  ${level + 1}段目: ${step.map(formatPos).join(' ')}`);
+        });
       }
       if (outcome.captured) {
         console.log(`取った駒: ${KANJI[outcome.captured.type]}`);
       }
       printState(state);
     } else {
-      const flipNote = outcome.flips.length > 0 ? `  反転 ${outcome.flips.length} 枚` : '';
+      const flipNote =
+        outcome.chainCount > 0
+          ? `  ${outcome.chainCount} 連鎖 / 反転 ${outcome.flips.length} 枚`
+          : '';
       const captureNote = outcome.captured ? `  ${KANJI[outcome.captured.type]}を取った` : '';
       console.log(`${header}${flipNote}${captureNote}`);
     }

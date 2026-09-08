@@ -5,12 +5,6 @@
  * DOM / fetch / Worker API を一切参照しません。クライアントとサーバの両方から import されます。
  */
 
-/** 盤の一辺のマス数（6x6）。 */
-export const BOARD_SIZE = 6;
-
-/** 盤のマス総数。 */
-export const SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
-
 /** 手番の色。sente = 先手（row 5 側）、gote = 後手（row 0 側）。 */
 export type Color = 'sente' | 'gote';
 
@@ -108,14 +102,25 @@ export interface GameState {
   readonly consecutivePasses: number;
   /** 千日手検出用。局面キー → 出現回数。 */
   readonly repetition: Readonly<Record<string, number>>;
+  /** 直前の手で発生した連鎖の段数（反転しなかったら 0）。 */
+  readonly lastChainCount: number;
+  /** 1局を通しての最大連鎖数。対局結果・ランキングの「最大連鎖数」部門に使う。 */
+  readonly maxChainCount: Readonly<Record<Color, number>>;
   readonly result: GameResult;
 }
 
 /** applyMove の詳細な結果（UI のアニメーションや棋譜表示に使う）。 */
 export interface MoveOutcome {
   readonly state: GameState;
-  /** 反転したマス（打った手のときのみ発生しうる）。 */
+  /** 反転したマス（全段をまとめたもの。打った手のときのみ発生しうる）。 */
   readonly flips: readonly Pos[];
+  /**
+   * 段ごとの反転マス。steps[0] が1段目。
+   * UI はこれを 150〜200ms 程度の時間差でアニメーションさせる。
+   */
+  readonly flipSteps: readonly (readonly Pos[])[];
+  /** 連鎖した段数（= flipSteps.length）。 */
+  readonly chainCount: number;
   /** 移動で取った駒（取っていなければ null）。 */
   readonly captured: Piece | null;
 }

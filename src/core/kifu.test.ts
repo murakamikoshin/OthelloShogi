@@ -10,6 +10,7 @@ import { pieceOn } from './test-helpers.ts';
 import type { GameState, Pos } from './types.ts';
 
 const SAMPLE = new URL('../../kifu/sample.kifu', import.meta.url);
+const CHAIN = new URL('../../kifu/chain.kifu', import.meta.url);
 
 describe('サンプル棋譜', () => {
   it('全ての手が合法で、想定どおりの最終局面になる', () => {
@@ -43,6 +44,29 @@ describe('サンプル棋譜', () => {
     expect(countPieces(state.board)).toEqual({ sente: 4, gote: 1 });
     expect(state.ply).toBe(7);
     expect(state.turn).toBe('gote');
+    expect(state.result.kind).toBe('playing');
+  });
+});
+
+describe('連鎖デモ棋譜', () => {
+  it('最後の1手で2連鎖が起き、最大連鎖数が記録される', () => {
+    const moves = parseKifu(readFileSync(CHAIN, 'utf8'));
+    expect(moves).toHaveLength(5);
+
+    let state: GameState = initialGameState();
+    let lastChain = 0;
+    for (const move of moves) {
+      const outcome = applyMoveWithDetail(state, move);
+      state = outcome.state;
+      lastChain = outcome.chainCount;
+    }
+
+    expect(lastChain).toBe(2);
+    expect(state.lastChainCount).toBe(2);
+    expect(state.maxChainCount).toEqual({ sente: 2, gote: 0 });
+    // 2枚とも先手のと金になっている
+    expect(pieceOn(state.board, 3, 4)).toEqual({ type: '+P', owner: 'sente' });
+    expect(pieceOn(state.board, 3, 3)).toEqual({ type: '+P', owner: 'sente' });
     expect(state.result.kind).toBe('playing');
   });
 });

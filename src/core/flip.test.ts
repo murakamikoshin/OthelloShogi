@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, previewFlips } from './game.ts';
-import { computeFlips } from './flip.ts';
+import { simulateDrop } from './flip.ts';
 import { at, board, hand, hands, pieceOn, posSet, state } from './test-helpers.ts';
 
 describe('打ったときの反転', () => {
@@ -49,7 +49,7 @@ describe('打ったときの反転', () => {
     });
 
     // 歩は前方(row-1)しか見ない。r3c2 の前方 r2c2 は空マス。
-    expect(computeFlips(s.board, at(3, 2), 'P', 'sente')).toEqual([]);
+    expect(simulateDrop(s.board, at(3, 2), 'P', 'sente').flips).toEqual([]);
   });
 
   it('飛を打つと縦横に一直線で複数枚裏返る', () => {
@@ -91,7 +91,7 @@ describe('打ったときの反転', () => {
       turn: 'sente',
     });
 
-    const flips = computeFlips(s.board, at(4, 4), 'B', 'sente');
+    const flips = simulateDrop(s.board, at(4, 4), 'B', 'sente').flips;
     expect(posSet(flips)).toEqual(['33']);
   });
 
@@ -134,7 +134,7 @@ describe('打ったときの反転', () => {
       turn: 'sente',
     });
 
-    const flips = computeFlips(s.board, at(4, 2), 'P', 'sente');
+    const flips = simulateDrop(s.board, at(4, 2), 'P', 'sente').flips;
     expect(posSet(flips)).toEqual(['32']);
   });
 
@@ -152,7 +152,7 @@ describe('打ったときの反転', () => {
       turn: 'sente',
     });
 
-    expect(computeFlips(s.board, at(5, 0), 'R', 'sente')).toEqual([]);
+    expect(simulateDrop(s.board, at(5, 0), 'R', 'sente').flips).toEqual([]);
   });
 
   it('相手の駒が0枚（自分の駒が隣接）なら裏返らない', () => {
@@ -169,7 +169,7 @@ describe('打ったときの反転', () => {
       turn: 'sente',
     });
 
-    expect(computeFlips(s.board, at(4, 2), 'P', 'sente')).toEqual([]);
+    expect(simulateDrop(s.board, at(4, 2), 'P', 'sente').flips).toEqual([]);
   });
 
   it('裏返った駒は成る（歩→と / 飛→竜 / 角→馬）', () => {
@@ -229,7 +229,7 @@ describe('打ったときの反転', () => {
       turn: 'sente',
     });
 
-    const flips = computeFlips(s.board, at(2, 2), 'R', 'sente');
+    const flips = simulateDrop(s.board, at(2, 2), 'R', 'sente').flips;
     expect(posSet(flips)).toEqual(['12', '21', '23', '32']);
   });
 
@@ -247,7 +247,7 @@ describe('打ったときの反転', () => {
       turn: 'gote',
     });
 
-    const flips = computeFlips(s.board, at(1, 3), 'P', 'gote');
+    const flips = simulateDrop(s.board, at(1, 3), 'P', 'gote').flips;
     expect(posSet(flips)).toEqual(['23']);
   });
 

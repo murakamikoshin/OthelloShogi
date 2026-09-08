@@ -18,7 +18,7 @@ import type {
   PieceType,
   Pos,
 } from './types.ts';
-import { BOARD_SIZE, SQUARE_COUNT } from './types.ts';
+import { BOARD_SIZE, SQUARE_COUNT } from './rules.ts';
 import {
   forwardOf,
   isInside,
