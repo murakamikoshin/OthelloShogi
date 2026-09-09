@@ -2,11 +2,18 @@
  * 連鎖反転のテスト（追加仕様 v2 §2.4 の必須項目）。
  */
 import { describe, expect, it } from 'vitest';
-import { collectFlipStep, flipRays, resolveChain, simulateDrop } from './flip.ts';
+import {
+  DEFAULT_FLIP_RANGES,
+  collectFlipStep,
+  flipRays,
+  resolveChain,
+  simulateDrop,
+} from './flip.ts';
 import { applyMoveWithDetail, previewDrop } from './game.ts';
 import { boardToString, posOf } from './board.ts';
 import { MAX_CHAIN } from './rules.ts';
 import { at, board, hand, hands, pieceOn, posSet, state } from './test-helpers.ts';
+import type { Dir } from './moves.ts';
 import type { Board, Pos } from './types.ts';
 
 /**
@@ -51,15 +58,24 @@ describe('連鎖反転', () => {
   });
 
   it('反転した駒の「成った後の利き」で次の判定が行われている', () => {
-    // 歩の利きは前1方向だけ。横に挟める利きは「と金」になって初めて生まれる。
-    expect(flipRays('P', 'sente').map((ray) => ray.dir)).toEqual([[-1, 0]]);
-    expect(flipRays('+P', 'sente').map((ray) => ray.dir)).toContainEqual([0, -1]);
+    // 利きの方向だけを見るモードなら、歩は前1方向。
+    // 横に挟める利きは「と金」に成って初めて生まれる。
+    const dirs = (type: 'P' | '+P', mode: 'attack' | 'wide' | 'all8'): readonly Dir[] =>
+      flipRays(type, 'sente', DEFAULT_FLIP_RANGES, mode).map((ray) => ray.dir);
+
+    expect(dirs('P', 'attack')).toEqual([[-1, 0]]);
+    expect(dirs('+P', 'attack')).toContainEqual([0, -1]);
+
+    // どの方向モードでも、成った駒の利きが未成の駒より狭くなることはない
+    for (const mode of ['attack', 'wide', 'all8'] as const) {
+      expect(dirs('+P', mode).length).toBeGreaterThanOrEqual(dirs('P', mode).length);
+    }
+
+    // 反転前は後手の歩なので、そこを起点にしても先手は何も裏返せない
+    expect(collectFlipStep(TWO_CHAIN, [at(3, 2)], 'sente')).toEqual([]);
 
     // 2段目の反転 r3c1 は、と金の横の利きでしか起こりえない
-    const asPawn = collectFlipStep(TWO_CHAIN, [at(3, 2)], 'gote');
-    expect(asPawn).toEqual([]); // 反転前は後手の歩なので何も起きない
-
-    const result = simulateDrop(TWO_CHAIN, at(4, 2), 'P', 'sente');
+    const result = simulateDrop(TWO_CHAIN, at(4, 2), 'P', 'sente', { mode: 'attack' });
     expect(posSet(result.steps[1] ?? [])).toEqual(['31']);
   });
 

@@ -27,7 +27,43 @@ import type { Board, Color, Piece, PieceType, Pos } from './types.ts';
 import type { Dir } from './moves.ts';
 import { isInside, posOf, promote } from './board.ts';
 import { slideDirs, stepDirs } from './moves.ts';
-import { BOARD_SIZE, MAX_CHAIN, SLIDE_FLIP_RANGE, STEP_FLIP_RANGE } from './rules.ts';
+import type { FlipDirectionMode } from './rules.ts';
+import {
+  BOARD_SIZE,
+  FLIP_DIRECTION_MODE,
+  MAX_CHAIN,
+  SLIDE_FLIP_RANGE,
+  STEP_FLIP_RANGE,
+} from './rules.ts';
+
+const ORTHOGONAL: readonly Dir[] = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+];
+
+const DIAGONAL: readonly Dir[] = [
+  [-1, -1],
+  [-1, 1],
+  [1, -1],
+  [1, 1],
+];
+
+const ALL_EIGHT: readonly Dir[] = [...ORTHOGONAL, ...DIAGONAL];
+
+/** FLIP_DIRECTION_MODE によって、利きに上乗せする方向。 */
+function extraDirs(mode: FlipDirectionMode): readonly Dir[] {
+  switch (mode) {
+    case 'wide':
+      return ORTHOGONAL;
+    case 'all8':
+      return ALL_EIGHT;
+    case 'attack':
+    default:
+      return [];
+  }
+}
 
 /** 挟み判定を行う1本の線。方向と、その方向に何マス先まで見るか。 */
 export interface FlipRay {
@@ -58,12 +94,23 @@ export function flipRays(
   type: PieceType,
   color: Color,
   ranges: FlipRanges = DEFAULT_FLIP_RANGES,
+  mode: FlipDirectionMode = FLIP_DIRECTION_MODE,
 ): FlipRay[] {
   if (type === 'K') return [];
-  return [
-    ...stepDirs(type, color).map((dir) => ({ dir, range: ranges.step })),
-    ...slideDirs(type).map((dir) => ({ dir, range: ranges.slide })),
-  ];
+
+  // 同じ方向が重複したときは先に入れた方（＝本来の利き）を残す。
+  // そうしないと飛の「走る」距離が上乗せ分で潰れてしまう。
+  const rays = new Map<string, FlipRay>();
+  const add = (dir: Dir, range: number): void => {
+    const key = `${dir[0]},${dir[1]}`;
+    if (!rays.has(key)) rays.set(key, { dir, range });
+  };
+
+  for (const dir of stepDirs(type, color)) add(dir, ranges.step);
+  for (const dir of slideDirs(type)) add(dir, ranges.slide);
+  for (const dir of extraDirs(mode)) add(dir, ranges.step);
+
+  return [...rays.values()];
 }
 
 /**
@@ -124,6 +171,7 @@ export function collectFlipStep(
   color: Color,
   alreadyFlipped: ReadonlySet<number> = new Set(),
   ranges: FlipRanges = DEFAULT_FLIP_RANGES,
+  mode: FlipDirectionMode = FLIP_DIRECTION_MODE,
 ): number[] {
   const found = new Set<number>();
 
@@ -132,7 +180,7 @@ export function collectFlipStep(
     // 玉は連鎖の起点にならない
     if (!piece || piece.type === 'K' || piece.owner !== color) continue;
 
-    for (const ray of flipRays(piece.type, piece.owner, ranges)) {
+    for (const ray of flipRays(piece.type, piece.owner, ranges, mode)) {
       for (const index of scanRay(board, origin, ray, color)) {
         // 同一の駒は1手番中に2回以上反転しない
         if (alreadyFlipped.has(index)) continue;
@@ -171,6 +219,7 @@ const NO_CHAIN: Omit<ChainResult, 'board'> = { steps: [], chainCount: 0, flips: 
 export interface ChainOptions {
   readonly maxChain?: number;
   readonly ranges?: FlipRanges;
+  readonly mode?: FlipDirectionMode;
 }
 
 /**
@@ -188,6 +237,7 @@ export function resolveChain(
 ): ChainResult {
   const maxChain = options.maxChain ?? MAX_CHAIN;
   const ranges = options.ranges ?? DEFAULT_FLIP_RANGES;
+  const mode = options.mode ?? FLIP_DIRECTION_MODE;
 
   const flippedThisTurn = new Set<number>();
   const steps: Pos[][] = [];
@@ -196,7 +246,7 @@ export function resolveChain(
   let chainCount = 0;
 
   while (origins.length > 0 && chainCount < maxChain) {
-    const newlyFlipped = collectFlipStep(current, origins, color, flippedThisTurn, ranges);
+    const newlyFlipped = collectFlipStep(current, origins, color, flippedThisTurn, ranges, mode);
     if (newlyFlipped.length === 0) break;
 
     // この段の反転は「同時に」適用する

@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, previewFlips } from './game.ts';
-import { simulateDrop } from './flip.ts';
+import { DEFAULT_FLIP_RANGES, flipRays, simulateDrop } from './flip.ts';
 import { at, board, hand, hands, pieceOn, posSet, state } from './test-helpers.ts';
 
 describe('打ったときの反転', () => {
@@ -34,22 +34,52 @@ describe('打ったときの反転', () => {
     expect(next.hands.sente.P).toBe(0);
   });
 
-  it('歩を打っても後方・横は判定しない（利きの方向だけ）', () => {
-    const s = state({
-      board: board(
-        '.  .  .  k  .  .',
-        '.  .  .  .  .  .',
-        '.  .  .  .  .  .',
-        '.  .  .  .  .  .', // ここに先手が歩を打つ
-        'R  p  .  p  R  .', // 左右に挟みの形があるが歩は横を見ない
-        '.  .  R  .  .  .', // 後方にも挟みの形があるが歩は後ろを見ない
-      ),
-      hands: hands(hand(1), hand()),
-      turn: 'sente',
+  describe('挟み判定の方向（FLIP_DIRECTION_MODE）', () => {
+    // r4c1 と r4c3 の後手の歩が、それぞれ r4c0 / r4c4 の先手の飛との間に挟まっている。
+    // 歩を r4c2 に打ったとき、これを裏返せるかどうかがモードで変わる。
+    const b = board(
+      '.  .  .  k  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      'R  p  .  p  R  .',
+      '.  .  R  .  .  .',
+    );
+
+    it("'attack' は打った駒の利きの方向だけを見る（歩は前1方向）", () => {
+      expect(flipRays('P', 'sente', DEFAULT_FLIP_RANGES, 'attack').map((ray) => ray.dir)).toEqual([
+        [-1, 0],
+      ]);
+      // 前方 r3c2 は空マスなので何も裏返らない
+      expect(simulateDrop(b, at(4, 2), 'P', 'sente', { mode: 'attack' }).flips).toEqual([]);
     });
 
-    // 歩は前方(row-1)しか見ない。r3c2 の前方 r2c2 は空マス。
-    expect(simulateDrop(s.board, at(3, 2), 'P', 'sente').flips).toEqual([]);
+    it("'wide' なら歩でも横で挟める", () => {
+      const result = simulateDrop(b, at(4, 2), 'P', 'sente', { mode: 'wide' });
+      expect(posSet(result.flips)).toEqual(['41', '43']);
+      expect(result.chainCount).toBe(1);
+    });
+
+    it("'all8' は駒種によらず全8方向を見る", () => {
+      expect(flipRays('P', 'sente', DEFAULT_FLIP_RANGES, 'all8')).toHaveLength(8);
+      expect(flipRays('B', 'sente', DEFAULT_FLIP_RANGES, 'all8')).toHaveLength(8);
+      expect(posSet(simulateDrop(b, at(4, 2), 'P', 'sente', { mode: 'all8' }).flips)).toEqual([
+        '41',
+        '43',
+      ]);
+    });
+
+    it('方向を上乗せしても、走る駒の距離は縮まない', () => {
+      const ranges = { slide: Number.POSITIVE_INFINITY, step: 1 };
+      // 飛の縦横は「走る」方向のまま（上乗せ分の距離1に潰されない）
+      for (const ray of flipRays('R', 'sente', ranges, 'wide')) {
+        expect(ray.range).toBe(Number.POSITIVE_INFINITY);
+      }
+      // 角は斜めが走る方向、上乗せされた縦横は1マス
+      const bishop = flipRays('B', 'sente', ranges, 'wide');
+      expect(bishop.filter((ray) => ray.range === Number.POSITIVE_INFINITY)).toHaveLength(4);
+      expect(bishop.filter((ray) => ray.range === 1)).toHaveLength(4);
+    });
   });
 
   it('飛を打つと縦横に一直線で複数枚裏返る', () => {

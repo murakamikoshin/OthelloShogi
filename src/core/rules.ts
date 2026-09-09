@@ -41,6 +41,18 @@ export const INITIAL_HAND: Hand = { P: 3, R: 1, B: 1 };
 export const MAX_CHAIN = 5;
 
 /**
+ * 挟み判定に使う方向の決め方。
+ *
+ *   'attack' … 打った駒の利きの方向だけ（歩は前1方向のみ）
+ *   'wide'   … 利きの方向 ＋ 縦横4方向。歩でも横で挟めるようになる
+ *   'all8'   … 全8方向。駒種による違いが消え、完全にオセロと同じ挟み判定になる
+ *
+ * 追加された方向は「1マスだけ利く方向」と同じ距離設定（STEP_FLIP_RANGE）で扱う。
+ */
+export type FlipDirectionMode = 'attack' | 'wide' | 'all8';
+export const FLIP_DIRECTION_MODE: FlipDirectionMode = 'wide';
+
+/**
  * 「走る」方向（飛・角・竜・馬の本来の走り）の挟み判定の距離上限。
  * 無制限が既定。強すぎるなら 3 に制限する案がある。
  */
