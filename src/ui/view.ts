@@ -43,6 +43,7 @@ export interface ViewModel {
   readonly canPass: boolean;
   readonly canResign: boolean;
   readonly animateLabel: string;
+  readonly muteLabel: string;
   readonly mode: OpponentMode;
   /** AI が考えているあいだ true */
   readonly thinking: boolean;
@@ -69,6 +70,7 @@ export interface ViewHandlers {
   onRematch(): void;
   onMode(mode: OpponentMode): void;
   onHelp(): void;
+  onToggleMute(): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -84,6 +86,7 @@ export class View {
   private readonly passButton: HTMLButtonElement;
   private readonly resignButton: HTMLButtonElement;
   private readonly animateButton: HTMLButtonElement;
+  private readonly muteButton: HTMLButtonElement;
   private readonly modeBar: HTMLDivElement;
   private readonly chainBanner: HTMLDivElement;
   private readonly overlay: HTMLDivElement;
@@ -94,6 +97,7 @@ export class View {
         <h1>寝返り将棋<span class="subtitle">NEGAERI SHOGI</span></h1>
         <span class="topbar__buttons">
           <button class="ghost" data-role="help">遊び方</button>
+          <button class="ghost" data-role="mute" aria-label="効果音"></button>
           <button class="ghost" data-role="animate"></button>
         </span>
       </header>
@@ -156,6 +160,7 @@ export class View {
     this.passButton = this.query<HTMLButtonElement>(root, 'pass');
     this.resignButton = this.query<HTMLButtonElement>(root, 'resign');
     this.animateButton = this.query<HTMLButtonElement>(root, 'animate');
+    this.muteButton = this.query<HTMLButtonElement>(root, 'mute');
     this.modeBar = this.query<HTMLDivElement>(root, 'modes');
     for (const mode of ['local', 'easy', 'normal', 'hard'] as const) {
       const button = document.createElement('button');
@@ -173,6 +178,7 @@ export class View {
     this.passButton.addEventListener('click', () => this.handlers.onPass());
     this.resignButton.addEventListener('click', () => this.handlers.onResign());
     this.animateButton.addEventListener('click', () => this.handlers.onToggleAnimate());
+    this.muteButton.addEventListener('click', () => this.handlers.onToggleMute());
     this.query<HTMLButtonElement>(root, 'rematch').addEventListener('click', () =>
       this.handlers.onRematch(),
     );
@@ -211,6 +217,7 @@ export class View {
     this.passButton.disabled = !model.canPass;
     this.resignButton.disabled = !model.canResign;
     this.animateButton.textContent = model.animateLabel;
+    this.muteButton.textContent = model.muteLabel;
 
     for (const button of this.modeBar.querySelectorAll<HTMLButtonElement>('button')) {
       button.setAttribute('aria-pressed', String(button.dataset.mode === model.mode));

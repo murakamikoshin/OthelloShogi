@@ -36,6 +36,7 @@ import {
 import type { Difficulty } from '../ai/search.ts';
 import { AiClient } from './ai-client.ts';
 import { COLOR_NAME, resultReason, resultTitle } from './labels.ts';
+import { Sound } from './sound.ts';
 import { showTutorial } from './tutorial.ts';
 import { View, type CellView, type OpponentMode, type ViewModel } from './view.ts';
 
@@ -71,6 +72,7 @@ export class App {
   private mode: OpponentMode = 'local';
   private thinking = false;
   private readonly ai = new AiClient();
+  private readonly sound = new Sound();
   private readonly view: View;
 
   constructor(root: HTMLElement) {
@@ -87,6 +89,7 @@ export class App {
       onPass: () => this.play({ kind: 'pass' }),
       onResign: () => this.handleResign(),
       onToggleAnimate: () => this.toggleAnimate(),
+      onToggleMute: () => this.toggleMute(),
       onRematch: () => this.rematch(),
       onMode: (mode) => this.setMode(mode),
       onHelp: () => showTutorial(true),
@@ -193,6 +196,13 @@ export class App {
     void this.maybeLetAiMove();
   }
 
+  private toggleMute(): void {
+    this.sound.toggleMute();
+    this.sound.unlock();
+    this.sound.play('place');
+    this.render();
+  }
+
   private toggleAnimate(): void {
     this.animate = !this.animate;
     window.localStorage.setItem(ANIMATE_KEY, this.animate ? 'on' : 'off');
@@ -271,6 +281,10 @@ export class App {
     const before = this.state;
     const outcome = applyMoveWithDetail(before, move);
 
+    this.sound.unlock();
+    if (move.kind === 'drop') this.sound.play('place');
+    else if (move.kind === 'move') this.sound.play(outcome.captured ? 'capture' : 'move');
+
     this.history.push(before);
     this.selection = { kind: 'none' };
     this.lastMove = move.kind === 'pass' ? null : move.to;
@@ -285,7 +299,14 @@ export class App {
     this.justFlipped = outcome.flips;
     this.render();
 
-    if (outcome.chainCount >= 3) this.view.showChainBanner(outcome.chainCount);
+    if (outcome.chainCount >= 3) {
+      this.view.showChainBanner(outcome.chainCount);
+      this.sound.play('chain');
+    } else if (outcome.chainCount > 0 && !this.animate) {
+      // 演出オフのときは1回だけ鳴らす
+      this.sound.play('flip');
+    }
+
     if (this.state.result.kind !== 'playing') {
       this.showResult();
       return;
@@ -307,6 +328,8 @@ export class App {
     for (let step = 0; step <= chainCount; step += 1) {
       const partial = simulateDrop(before.board, to, piece, before.turn, { maxChain: step });
       const flipped = step === 0 ? [] : (partial.steps[step - 1] ?? []);
+      // 段が上がるごとに音を高くする
+      if (step > 0) this.sound.play('flip', (step - 1) * 3);
       this.renderBoardOnly(partial.board, flipped);
       await sleep(CHAIN_STEP_MS);
     }
@@ -415,6 +438,7 @@ export class App {
       canPass: this.humanTurn && mustPass(state),
       canResign: playing && !animating && !this.thinking,
       animateLabel: this.animate ? '演出 ON' : '演出 OFF',
+      muteLabel: this.sound.isMuted ? '🔇' : '🔊',
       mode: this.mode,
       thinking: this.thinking,
     };
@@ -443,6 +467,12 @@ export class App {
   }
 
   private showResult(): void {
+    const { result } = this.state;
+    if (result.kind === 'win') {
+      // AI 対戦なら自分（先手）が勝ったかどうかで鳴らし分ける
+      const humanWon = this.mode === 'local' || result.winner !== AI_COLOR;
+      this.sound.play(humanWon ? 'win' : 'lose');
+    }
     const counts = countPieces(this.state.board);
     this.view.showResult(
       resultTitle(this.state.result),

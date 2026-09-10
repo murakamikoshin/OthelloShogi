@@ -33,6 +33,14 @@ const cell = (row, col) => page.locator('.cell').nth(row * 6 + col);
 const chip = (owner, kanji) =>
   page.locator(`.hand--${owner} .chip`, { hasText: kanji }).first();
 const shot = (name) => page.screenshot({ path: `${outDir}/${name}.png` });
+/** 初回に出るルール説明を閉じる。 */
+const dismissTutorial = async () => {
+  const tutorial = page.locator('.tut');
+  if (await tutorial.isVisible().catch(() => false)) {
+    await page.locator('[data-role="skip"]').click();
+    await page.waitForTimeout(120);
+  }
+};
 const check = (label, actual, expected) => {
   const ok = String(actual) === String(expected);
   console.log(`${ok ? '  ok' : 'FAIL'}  ${label}: ${actual}${ok ? '' : ` (期待: ${expected})`}`);
@@ -40,6 +48,12 @@ const check = (label, actual, expected) => {
 };
 
 await page.goto(url, { waitUntil: 'networkidle' });
+await page.waitForTimeout(200);
+check('初回にルール説明が出る', await page.locator('.tut').isVisible(), true);
+check('ルール説明は3枚', await page.locator('.tut__dot').count(), 3);
+await shot('00-tutorial');
+await dismissTutorial();
+
 await shot('01-initial');
 check('初期の手番', await page.locator('.status__turn').textContent(), '先手番');
 
@@ -91,6 +105,7 @@ await shot('05-result');
 // AI 対戦（別スレッドで思考しても画面が固まらないこと）
 // ---------------------------------------------------------------------------
 await page.goto(url, { waitUntil: 'networkidle' });
+await dismissTutorial();
 await page.locator('.modes button', { hasText: 'AI 中' }).click();
 await page.waitForTimeout(150);
 
