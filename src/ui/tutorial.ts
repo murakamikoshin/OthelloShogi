@@ -10,13 +10,14 @@
  */
 import type { Board, Pos } from '../core/index.ts';
 import { BOARD_SIZE, parseBoardDiagram, simulateDrop } from '../core/index.ts';
-import { PIECE_KANJI } from './labels.ts';
+import { t } from '../i18n/index.ts';
+import { pieceKanji, pieceRoman } from './labels.ts';
 
 const SEEN_KEY = 'negaeri:tutorial-seen';
 
 interface Slide {
-  readonly title: string;
-  readonly body: string;
+  /** 訳語のキーの接頭辞（例: 'tutorial.flip'） */
+  readonly key: string;
   /** 打つ前の盤 */
   readonly before: Board;
   /** 打つ手 */
@@ -25,8 +26,7 @@ interface Slide {
 
 /** 1. 挟むと寝返る */
 const SLIDE_FLIP: Slide = {
-  title: '挟むと寝返る',
-  body: '持ち駒を打って相手の駒を自分の駒で挟むと、挟んだ駒が寝返って自分のものになります。オセロと同じ挟み方です。',
+  key: 'tutorial.flip',
   before: parseBoardDiagram([
     '.  .  .  .  .  .',
     '.  .  R  .  .  .',
@@ -40,8 +40,7 @@ const SLIDE_FLIP: Slide = {
 
 /** 2. 寝返った駒は成る */
 const SLIDE_PROMOTE: Slide = {
-  title: '寝返った駒は出世する',
-  body: '寝返った駒は同時に成ります。歩は「と」、飛は「竜」、角は「馬」に。動かして成ることはできません。成る道はこれだけです。',
+  key: 'tutorial.promote',
   before: parseBoardDiagram([
     '.  .  .  .  .  .',
     '.  R  b  r  .  .',
@@ -55,8 +54,7 @@ const SLIDE_PROMOTE: Slide = {
 
 /** 3. 成った駒の利きで連鎖する */
 const SLIDE_CHAIN: Slide = {
-  title: '成った駒の利きで連鎖する',
-  body: '成った駒は利きが広がります。その新しい利きでまた挟みが成立すれば、続けて寝返る。これが連鎖です。歩は前しか見ませんが、と金は横も見ます。',
+  key: 'tutorial.chain',
   before: parseBoardDiagram([
     '.  .  .  .  .  .',
     '.  .  .  .  .  .',
@@ -77,8 +75,11 @@ function renderBoard(board: Board, marks: ReadonlyMap<number, string>): string {
     const piece = board[index] ?? null;
     const mark = marks.get(index);
     const attrs = mark ? ` data-mark="${mark}"` : '';
+    const roman = piece ? pieceRoman(piece.type) : null;
     const inner = piece
-      ? `<span class="tut__piece" data-owner="${piece.owner}" data-promoted="${piece.type.startsWith('+')}">${PIECE_KANJI[piece.type]}</span>`
+      ? `<span class="tut__piece" data-owner="${piece.owner}"` +
+        ` data-promoted="${piece.type.startsWith('+')}"` +
+        `${roman ? ` data-roman="${roman}"` : ''}>${pieceKanji(piece.type)}</span>`
       : '';
     cells.push(`<div class="tut__cell"${attrs}>${inner}</div>`);
   }
@@ -98,22 +99,24 @@ function renderSlide(slide: Slide): string {
   });
 
   const chainNote =
-    result.chainCount >= 2 ? `<span class="tut__chain">${result.chainCount} 連鎖</span>` : '';
+    result.chainCount >= 2
+      ? `<span class="tut__chain">${t('chain.badge', { count: result.chainCount })}</span>`
+      : '';
 
   return `
-    <h2 class="tut__title">${slide.title}</h2>
+    <h2 class="tut__title">${t(`${slide.key}.title`)}</h2>
     <div class="tut__figures">
       <figure>
-        <figcaption>ここに ${PIECE_KANJI[piece]} を打つ</figcaption>
+        <figcaption>${t('tutorial.dropHere', { piece: pieceKanji(piece) })}</figcaption>
         ${renderBoard(slide.before, beforeMarks)}
       </figure>
       <div class="tut__arrow" aria-hidden="true">▼</div>
       <figure>
-        <figcaption>${result.flips.length} 枚が寝返る ${chainNote}</figcaption>
+        <figcaption>${t('tutorial.flipped', { count: result.flips.length })} ${chainNote}</figcaption>
         ${renderBoard(result.board, afterMarks)}
       </figure>
     </div>
-    <p class="tut__body">${slide.body}</p>
+    <p class="tut__body">${t(`${slide.key}.body`)}</p>
   `;
 }
 
@@ -132,7 +135,7 @@ export function showTutorial(force = false): void {
       <div class="tut__slide" data-role="slide"></div>
       <div class="tut__dots" data-role="dots"></div>
       <div class="tut__buttons">
-        <button class="ghost" data-role="skip">とばす</button>
+        <button class="ghost" data-role="skip">${t('action.skip')}</button>
         <button class="confirm" data-role="next"></button>
       </div>
     </div>
@@ -156,7 +159,7 @@ export function showTutorial(force = false): void {
     dots.innerHTML = SLIDES.map(
       (_, i) => `<span class="tut__dot"${i === index ? ' data-on="true"' : ''}></span>`,
     ).join('');
-    nextButton.textContent = index === SLIDES.length - 1 ? 'はじめる' : '次へ';
+    nextButton.textContent = t(index === SLIDES.length - 1 ? 'action.start' : 'action.next');
   };
 
   nextButton.addEventListener('click', () => {

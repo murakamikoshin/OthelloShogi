@@ -1,45 +1,44 @@
 /**
- * 画面に出す文字列。Phase 4 の多言語対応では、ここを言語ファイルに差し替える。
+ * 画面表示のための言い換え。文字列そのものは /src/i18n が持つ。
  */
-import type { Color, DrawReason, GameResult, PieceType, WinReason } from '../core/index.ts';
+import type { Color, GameResult, PieceType } from '../core/index.ts';
+import { isJapanese, t } from '../i18n/index.ts';
 
-export const PIECE_KANJI: Record<PieceType, string> = {
-  K: '玉',
-  P: '歩',
-  R: '飛',
-  B: '角',
-  '+P': 'と',
-  '+R': '竜',
-  '+B': '馬',
+/**
+ * 駒の表記。日本語は漢字だけ。
+ * それ以外の言語では、漢字の下に小さくローマ字を重ねる（CSS が data-roman を使う）。
+ */
+export const PIECE_ROMAN: Record<PieceType, string> = {
+  K: 'K',
+  P: 'P',
+  R: 'R',
+  B: 'B',
+  '+P': '+P',
+  '+R': '+R',
+  '+B': '+B',
 };
 
-export const COLOR_NAME: Record<Color, string> = {
-  sente: '先手',
-  gote: '後手',
-};
+export function pieceKanji(type: PieceType): string {
+  return t(`piece.${type}`);
+}
 
-const WIN_REASON: Record<WinReason, string> = {
-  king_captured: '玉を取った',
-  pass_count: '両者パス → 盤上の駒数',
-  repetition_count: '同一局面4回 → 盤上の駒数',
-  resign: '投了',
-  timeout: '時間切れ',
-  illegal_move: '反則',
-};
+/** 漢字の下に出すローマ字。日本語のときは出さない。 */
+export function pieceRoman(type: PieceType): string | null {
+  return isJapanese() ? null : PIECE_ROMAN[type];
+}
 
-const DRAW_REASON: Record<DrawReason, string> = {
-  pass_count: '両者パス → 駒数が同数',
-  repetition_count: '同一局面4回 → 駒数が同数',
-};
+export function colorName(color: Color): string {
+  return t(`color.${color}`);
+}
 
 export function resultTitle(result: GameResult): string {
-  if (result.kind === 'draw') return '引き分け';
-  if (result.kind === 'win') return `${COLOR_NAME[result.winner]}の勝ち`;
-  return '対局中';
+  if (result.kind === 'draw') return t('result.draw');
+  if (result.kind === 'win') return t('result.win', { color: colorName(result.winner) });
+  return t('result.playing');
 }
 
 export function resultReason(result: GameResult): string {
-  if (result.kind === 'draw') return DRAW_REASON[result.reason];
-  if (result.kind === 'win') return WIN_REASON[result.reason];
+  if (result.kind === 'draw') return t(`reason.draw_${result.reason}`);
+  if (result.kind === 'win') return t(`reason.${result.reason}`);
   return '';
 }

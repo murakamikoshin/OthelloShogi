@@ -1,0 +1,75 @@
+{
+  "lang.name": "日本語",
+  "app.title": "寝返り将棋",
+  "app.subtitle": "NEGAERI SHOGI",
+
+  "color.sente": "先手",
+  "color.gote": "後手",
+  "turn.label": "{color}番",
+
+  "hand.label": "{color}\n持ち駒",
+  "hand.empty": "なし",
+
+  "action.undo": "待った",
+  "action.pass": "パス",
+  "action.resign": "投了",
+  "action.rematch": "もう一局",
+  "action.confirm": "打つ",
+  "action.help": "遊び方",
+  "action.next": "次へ",
+  "action.start": "はじめる",
+  "action.skip": "とばす",
+
+  "mode.local": "2人",
+  "mode.easy": "AI 弱",
+  "mode.normal": "AI 中",
+  "mode.hard": "AI 強",
+
+  "toggle.animateOn": "演出 ON",
+  "toggle.animateOff": "演出 OFF",
+
+  "hint.thinking": "AI が考えています…",
+  "hint.flipping": "反転中…",
+  "hint.mustPass": "合法手がありません。パスしてください",
+  "hint.pickSquare": "打つマスを選ぶ（数字は裏返る枚数）",
+  "hint.pickDestination": "動かすマスを選ぶ",
+  "hint.pickPiece": "駒か持ち駒をタップ",
+  "hint.dropNoFlip": "ここに打つ（裏返る駒なし）",
+  "hint.dropFlips": "{count}枚 裏返る",
+  "hint.dropChain": "{count}枚 裏返る / {chain}連鎖",
+
+  "chain.banner": "{count} 連鎖!",
+  "chain.badge": "{count} 連鎖",
+
+  "result.win": "{color}の勝ち",
+  "result.draw": "引き分け",
+  "result.playing": "対局中",
+  "result.stats": "盤上の駒 {sente} / {gote}　　最大連鎖 {chainSente} / {chainGote}",
+  "reason.king_captured": "玉を取った",
+  "reason.pass_count": "両者パス → 盤上の駒数",
+  "reason.repetition_count": "同一局面4回 → 盤上の駒数",
+  "reason.resign": "投了",
+  "reason.timeout": "時間切れ",
+  "reason.illegal_move": "反則",
+  "reason.draw_pass_count": "両者パス → 駒数が同数",
+  "reason.draw_repetition_count": "同一局面4回 → 駒数が同数",
+
+  "confirm.resign": "{color}が投了します。よろしいですか？",
+
+  "tutorial.flip.title": "挟むと寝返る",
+  "tutorial.flip.body": "持ち駒を打って相手の駒を自分の駒で挟むと、挟んだ駒が寝返って自分のものになります。オセロと同じ挟み方です。",
+  "tutorial.promote.title": "寝返った駒は出世する",
+  "tutorial.promote.body": "寝返った駒は同時に成ります。歩は「と」、飛は「竜」、角は「馬」に。動かして成ることはできません。成る道はこれだけです。",
+  "tutorial.chain.title": "成った駒の利きで連鎖する",
+  "tutorial.chain.body": "成った駒は利きが広がります。その新しい利きでまた挟みが成立すれば、続けて寝返る。これが連鎖です。歩は前しか見ませんが、と金は横も見ます。",
+  "tutorial.dropHere": "ここに {piece} を打つ",
+  "tutorial.flipped": "{count} 枚が寝返る",
+
+  "piece.K": "玉",
+  "piece.P": "歩",
+  "piece.R": "飛",
+  "piece.B": "角",
+  "piece.+P": "と",
+  "piece.+R": "竜",
+  "piece.+B": "馬"
+}

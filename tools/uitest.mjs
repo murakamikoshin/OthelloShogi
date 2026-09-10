@@ -18,9 +18,11 @@ mkdirSync(outDir, { recursive: true });
 const executablePath = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium';
 
 const browser = await chromium.launch({ executablePath });
+// 既定は日本語環境として確認する（英語は最後にまとめて確認する）
 const page = await browser.newPage({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
+  locale: 'ja-JP',
 });
 
 const problems = [];
@@ -125,6 +127,50 @@ await page.waitForFunction(
 check('AI が指し返して先手番に戻る', await page.locator('.status__turn').textContent(), '先手番');
 check('AI が指したので盤の駒が増えているか動いている', (await page.locator('.cell__piece').count()) >= 13, true);
 await shot('06-vs-ai');
+
+// ---------------------------------------------------------------------------
+// 多言語（navigator.language での自動判定 / 切り替え / レイアウトの頑丈さ）
+// ---------------------------------------------------------------------------
+const english = await browser.newPage({ viewport: { width: 360, height: 780 }, locale: 'en-US' });
+await english.goto(url, { waitUntil: 'networkidle' });
+await english.waitForTimeout(200);
+check(
+  '英語環境では英語で開く',
+  await english.locator('.tut__title').textContent(),
+  'Sandwich it and it defects',
+);
+await english.locator('[data-role="skip"]').click();
+await english.waitForTimeout(150);
+check('ボタンも英語になる', await english.locator('[data-role="resign"]').textContent(), 'Resign');
+check(
+  '日本語以外では駒にローマ字が付く',
+  await english.locator('.cell__piece[data-roman]').count(),
+  12,
+);
+check(
+  '横スクロールが出ない',
+  await english.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  ),
+  false,
+);
+
+// 言語を切り替えると日本語に戻り、ローマ字も消える
+await english.locator('[data-role="lang"]').click();
+await english.waitForTimeout(150);
+check('切り替えで日本語になる', await english.locator('[data-role="resign"]').textContent(), '投了');
+check('日本語ではローマ字を出さない', await english.locator('.cell__piece[data-roman]').count(), 0);
+
+// 文字数が2倍でも壊れないこと（ドイツ語想定）
+const brokeLayout = await english.evaluate(() => {
+  for (const button of document.querySelectorAll('.modes button, .actions button')) {
+    button.textContent = 'Zugunerkennung';
+  }
+  return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+});
+check('語が2倍の長さでもレイアウトが崩れない', brokeLayout, false);
+await english.screenshot({ path: `${outDir}/08-english.png` });
+await english.close();
 
 await browser.close();
 

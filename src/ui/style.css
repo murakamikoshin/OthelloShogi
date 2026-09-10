@@ -76,14 +76,27 @@ body {
 
 .topbar__buttons {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: 0;
   flex: 0 0 auto;
 }
 
+button.ghost.icon {
+  min-width: 30px;
+  padding: 6px 4px;
+  font-size: 13px;
+  text-align: center;
+}
+
 .topbar h1 {
-  font-size: 17px;
+  font-size: 16px;
+  min-width: 0;
+  flex: 1 1 auto;
   margin: 0;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar .subtitle {
@@ -131,9 +144,12 @@ button.ghost {
 }
 
 .modes button {
-  padding: 6px 4px;
+  padding: 6px 2px;
   min-height: 34px;
-  font-size: 13px;
+  font-size: clamp(10px, 3.1vw, 13px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .modes button[aria-pressed='true'] {
@@ -147,6 +163,14 @@ button.ghost {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+
+.actions button {
+  padding: 8px 4px;
+  font-size: clamp(11px, 3.4vw, 15px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .actions .danger {
@@ -169,10 +193,14 @@ button.ghost {
 .hand__label {
   font-size: 11px;
   color: var(--ink-soft);
-  writing-mode: horizontal-tb;
   flex: 0 0 auto;
-  width: 34px;
+  /* 語が長い言語（ドイツ語など）でも折り返して収まるようにする */
+  width: 4.5em;
+  max-width: 30%;
   line-height: 1.2;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .hand__pieces {
@@ -265,6 +293,29 @@ button.ghost {
 
 .cell__piece[data-owner='gote'] {
   transform: rotate(180deg);
+}
+
+/* 日本語以外では漢字の下に小さくローマ字を重ねる */
+.cell__piece[data-roman]::after,
+.chip__kanji[data-roman]::after,
+.tut__piece[data-roman]::after {
+  content: attr(data-roman);
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  font-size: 0.34em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.cell__piece[data-roman],
+.chip__kanji[data-roman],
+.tut__piece[data-roman] {
+  position: relative;
 }
 
 .cell__piece[data-promoted='true'] {
@@ -392,7 +443,8 @@ button.ghost {
   min-height: 42px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   padding: 6px 10px;
   background: var(--surface);
   border-radius: var(--radius);
@@ -428,11 +480,13 @@ button.ghost {
 
 .status__hint {
   color: var(--ink-soft);
-  flex: 1 1 auto;
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .status__counts {
   flex: 0 0 auto;
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--ink-soft);

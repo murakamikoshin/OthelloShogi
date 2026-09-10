@@ -9,7 +9,7 @@ import type { GameState, Move } from '../src/core/index.ts';
 import {
   BOARD_SIZE,
   FLIP_DIRECTION_MODE,
-  INITIAL_HAND,
+  INITIAL_HANDS,
   SQUARE_COUNT,
   applyMoveWithDetail,
   countPieces,
@@ -120,7 +120,8 @@ function main(): void {
   console.log('');
   console.log(
     `盤 ${BOARD_SIZE}x${BOARD_SIZE}（${SQUARE_COUNT}マス） / ` +
-      `初期持ち駒 歩${INITIAL_HAND.P} 飛${INITIAL_HAND.R} 角${INITIAL_HAND.B} / ` +
+      `初期持ち駒 先手 歩${INITIAL_HANDS.sente.P}飛${INITIAL_HANDS.sente.R}角${INITIAL_HANDS.sente.B}` +
+      ` / 後手 歩${INITIAL_HANDS.gote.P}飛${INITIAL_HANDS.gote.R}角${INITIAL_HANDS.gote.B} / ` +
       `方向 ${FLIP_DIRECTION_MODE}`,
   );
   console.log(`AI 自己対戦 ${games} 局・深さ ${depth}（${((Date.now() - started) / 1000).toFixed(1)}秒）`);

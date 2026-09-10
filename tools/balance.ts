@@ -14,7 +14,7 @@ import type { GameState, Move } from '../src/core/index.ts';
 import {
   BOARD_SIZE,
   FLIP_DIRECTION_MODE,
-  INITIAL_HAND,
+  INITIAL_HANDS,
   MAX_CHAIN,
   SQUARE_COUNT,
   applyMoveWithDetail,
@@ -81,7 +81,8 @@ function main(): void {
 
   console.log(
     `盤 ${BOARD_SIZE}x${BOARD_SIZE}（${SQUARE_COUNT}マス） / ` +
-      `初期持ち駒 歩${INITIAL_HAND.P} 飛${INITIAL_HAND.R} 角${INITIAL_HAND.B} / ` +
+      `初期持ち駒 先手 歩${INITIAL_HANDS.sente.P}飛${INITIAL_HANDS.sente.R}角${INITIAL_HANDS.sente.B}` +
+      ` / 後手 歩${INITIAL_HANDS.gote.P}飛${INITIAL_HANDS.gote.R}角${INITIAL_HANDS.gote.B} / ` +
       `方向 ${FLIP_DIRECTION_MODE} / MAX_CHAIN ${MAX_CHAIN}`,
   );
   console.log(`ランダム対局 ${games} 局`);

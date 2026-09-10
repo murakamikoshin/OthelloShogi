@@ -15,7 +15,7 @@ import {
 } from './game.ts';
 import { countPieces, findKing, findPieces, pieceAt, samePos } from './board.ts';
 import { destinationsFrom } from './moves.ts';
-import { BOARD_SIZE, INITIAL_HAND, INITIAL_SETUP } from './rules.ts';
+import { BOARD_SIZE, INITIAL_HANDS, INITIAL_SETUP } from './rules.ts';
 import { at, board, hands, pieceOn, state } from './test-helpers.ts';
 
 describe('初期局面', () => {
@@ -32,8 +32,8 @@ describe('初期局面', () => {
 
     const total = INITIAL_SETUP.length;
     expect(countPieces(s.board)).toEqual({ sente: total, gote: total });
-    expect(s.hands.sente).toEqual(INITIAL_HAND);
-    expect(s.hands.gote).toEqual(INITIAL_HAND);
+    expect(s.hands.sente).toEqual(INITIAL_HANDS.sente);
+    expect(s.hands.gote).toEqual(INITIAL_HANDS.gote);
     expect(s.turn).toBe('sente');
     expect(s.result.kind).toBe('playing');
   });
@@ -57,8 +57,8 @@ describe('初期局面', () => {
     const before = s.board.slice();
     const next = applyMove(s, { kind: 'drop', piece: 'P', to: at(3, 2) });
     expect(s.board).toEqual(before);
-    expect(s.hands.sente.P).toBe(INITIAL_HAND.P);
-    expect(next.hands.sente.P).toBe(INITIAL_HAND.P - 1);
+    expect(s.hands.sente.P).toBe(INITIAL_HANDS.sente.P);
+    expect(next.hands.sente.P).toBe(INITIAL_HANDS.sente.P - 1);
     expect(next.turn).toBe('gote');
   });
 });

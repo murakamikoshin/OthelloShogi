@@ -35,7 +35,8 @@ import {
 } from '../core/index.ts';
 import type { Difficulty } from '../ai/search.ts';
 import { AiClient } from './ai-client.ts';
-import { COLOR_NAME, resultReason, resultTitle } from './labels.ts';
+import { initLang, languageCode, nextLang, peekNextLang, t } from '../i18n/index.ts';
+import { colorName, resultReason, resultTitle } from './labels.ts';
 import { Sound } from './sound.ts';
 import { showTutorial } from './tutorial.ts';
 import { View, type CellView, type OpponentMode, type ViewModel } from './view.ts';
@@ -76,6 +77,7 @@ export class App {
   private readonly view: View;
 
   constructor(root: HTMLElement) {
+    initLang();
     this.animate = window.localStorage.getItem(ANIMATE_KEY) !== 'off';
     const savedMode = window.localStorage.getItem(MODE_KEY);
     if (savedMode === 'local' || savedMode === 'easy' || savedMode === 'normal' || savedMode === 'hard') {
@@ -93,6 +95,7 @@ export class App {
       onRematch: () => this.rematch(),
       onMode: (mode) => this.setMode(mode),
       onHelp: () => showTutorial(true),
+      onToggleLang: () => this.toggleLang(),
     });
     this.render();
     showTutorial();
@@ -178,7 +181,7 @@ export class App {
 
   private handleResign(): void {
     if (this.state.result.kind !== 'playing') return;
-    if (!window.confirm(`${COLOR_NAME[this.state.turn]}が投了します。よろしいですか？`)) return;
+    if (!window.confirm(t('confirm.resign', { color: colorName(this.state.turn) }))) return;
     this.history.push(this.state);
     this.state = resign(this.state, this.state.turn);
     this.selection = { kind: 'none' };
@@ -194,6 +197,11 @@ export class App {
     this.selection = { kind: 'none' };
     this.render();
     void this.maybeLetAiMove();
+  }
+
+  private toggleLang(): void {
+    nextLang();
+    this.render();
   }
 
   private toggleMute(): void {
@@ -429,40 +437,45 @@ export class App {
     return {
       cells,
       hands: { sente: buildHand('sente'), gote: buildHand('gote') },
-      turnLabel: playing ? `${COLOR_NAME[state.turn]}番` : resultTitle(state.result),
+      turnLabel: playing
+        ? t('turn.label', { color: colorName(state.turn) })
+        : resultTitle(state.result),
       turnColor: state.turn,
       hint: this.hint(animating),
-      counts: `${counts.sente} 対 ${counts.gote}`,
-      confirmLabel: this.selection.kind === 'drop' && !animating ? '打つ' : null,
+      counts: `${counts.sente} : ${counts.gote}`,
+      confirmLabel: this.selection.kind === 'drop' && !animating ? t('action.confirm') : null,
       canUndo: this.history.length > 0 && !animating && !this.thinking,
       canPass: this.humanTurn && mustPass(state),
       canResign: playing && !animating && !this.thinking,
-      animateLabel: this.animate ? '演出 ON' : '演出 OFF',
+      animateLabel: this.animate ? '✨' : '💤',
       muteLabel: this.sound.isMuted ? '🔇' : '🔊',
+      langLabel: languageCode(peekNextLang()),
       mode: this.mode,
       thinking: this.thinking,
     };
   }
 
   private hint(animating: boolean): string {
-    if (this.thinking) return 'AI が考えています…';
-    if (animating) return '反転中…';
+    if (this.thinking) return t('hint.thinking');
+    if (animating) return t('hint.flipping');
     const { state } = this;
     if (state.result.kind !== 'playing') return resultReason(state.result);
-    if (mustPass(state)) return '合法手がありません。パスしてください';
+    if (mustPass(state)) return t('hint.mustPass');
 
     switch (this.selection.kind) {
       case 'drop': {
         const { chainCount, flips } = this.selection.preview;
-        if (flips.length === 0) return 'ここに打つ（裏返る駒なし）';
-        return `${flips.length}枚 裏返る${chainCount >= 2 ? ` / ${chainCount}連鎖` : ''}`;
+        if (flips.length === 0) return t('hint.dropNoFlip');
+        return chainCount >= 2
+          ? t('hint.dropChain', { count: flips.length, chain: chainCount })
+          : t('hint.dropFlips', { count: flips.length });
       }
       case 'hand':
-        return '打つマスを選ぶ（数字は裏返る枚数）';
+        return t('hint.pickSquare');
       case 'board':
-        return '動かすマスを選ぶ';
+        return t('hint.pickDestination');
       default:
-        return legalMoves(state).length > 0 ? '駒か持ち駒をタップ' : '';
+        return legalMoves(state).length > 0 ? t('hint.pickPiece') : '';
     }
   }
 
@@ -477,8 +490,12 @@ export class App {
     this.view.showResult(
       resultTitle(this.state.result),
       resultReason(this.state.result),
-      `盤上の駒 先手 ${counts.sente} / 後手 ${counts.gote}　　` +
-        `最大連鎖 先手 ${this.state.maxChainCount.sente} / 後手 ${this.state.maxChainCount.gote}`,
+      t('result.stats', {
+        sente: counts.sente,
+        gote: counts.gote,
+        chainSente: this.state.maxChainCount.sente,
+        chainGote: this.state.maxChainCount.gote,
+      }),
     );
   }
 }

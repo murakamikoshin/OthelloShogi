@@ -36,7 +36,7 @@ import type { ChainResult } from './flip.ts';
 import { simulateDrop } from './flip.ts';
 import { destinationsFrom, generateMoves } from './moves.ts';
 import {
-  INITIAL_HAND,
+  INITIAL_HANDS,
   INITIAL_SETUP,
   BOARD_SIZE,
   PASS_LIMIT,
@@ -69,11 +69,11 @@ export function initialBoard(): Board {
   return board;
 }
 
-/** 初期持ち駒。既定は両者とも 歩3・飛1・角1（rules.ts の INITIAL_HAND）。 */
+/** 初期持ち駒。配置は rules.ts の INITIAL_HANDS が正。 */
 export function initialHands(): Hands {
   return {
-    sente: { ...emptyHand(), ...INITIAL_HAND },
-    gote: { ...emptyHand(), ...INITIAL_HAND },
+    sente: { ...emptyHand(), ...INITIAL_HANDS.sente },
+    gote: { ...emptyHand(), ...INITIAL_HANDS.gote },
   };
 }
 

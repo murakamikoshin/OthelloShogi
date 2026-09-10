@@ -3,7 +3,8 @@
  * 与えられた ViewModel をそのまま画面に写すだけ。
  */
 import { BOARD_SIZE, type Square } from '../core/index.ts';
-import { PIECE_KANJI } from './labels.ts';
+import { applyTranslations, t } from '../i18n/index.ts';
+import { pieceKanji, pieceRoman } from './labels.ts';
 
 /** 1マスの表示内容。 */
 export interface CellView {
@@ -44,6 +45,7 @@ export interface ViewModel {
   readonly canResign: boolean;
   readonly animateLabel: string;
   readonly muteLabel: string;
+  readonly langLabel: string;
   readonly mode: OpponentMode;
   /** AI が考えているあいだ true */
   readonly thinking: boolean;
@@ -52,12 +54,7 @@ export interface ViewModel {
 /** 対戦相手。local = 同じ端末で2人。 */
 export type OpponentMode = 'local' | 'easy' | 'normal' | 'hard';
 
-export const OPPONENT_LABELS: Readonly<Record<OpponentMode, string>> = {
-  local: '2人',
-  easy: 'AI 弱',
-  normal: 'AI 中',
-  hard: 'AI 強',
-};
+export const OPPONENT_MODES: readonly OpponentMode[] = ['local', 'easy', 'normal', 'hard'];
 
 export interface ViewHandlers {
   onCell(row: number, col: number): void;
@@ -71,6 +68,7 @@ export interface ViewHandlers {
   onMode(mode: OpponentMode): void;
   onHelp(): void;
   onToggleMute(): void;
+  onToggleLang(): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -90,26 +88,31 @@ export class View {
   private readonly modeBar: HTMLDivElement;
   private readonly chainBanner: HTMLDivElement;
   private readonly overlay: HTMLDivElement;
+  private root!: HTMLElement;
 
   constructor(root: HTMLElement, private readonly handlers: ViewHandlers) {
     root.innerHTML = `
       <header class="topbar">
-        <h1>寝返り将棋<span class="subtitle">NEGAERI SHOGI</span></h1>
+        <h1>
+          <span data-i18n="app.title"></span>
+          <span class="subtitle" data-i18n="app.subtitle"></span>
+        </h1>
         <span class="topbar__buttons">
-          <button class="ghost" data-role="help">遊び方</button>
-          <button class="ghost" data-role="mute" aria-label="効果音"></button>
-          <button class="ghost" data-role="animate"></button>
+          <button class="ghost" data-role="help" data-i18n="action.help"></button>
+          <button class="ghost icon" data-role="lang"></button>
+          <button class="ghost icon" data-role="mute" data-i18n-label="action.help"></button>
+          <button class="ghost icon" data-role="animate"></button>
         </span>
       </header>
       <section class="hand hand--gote">
-        <span class="hand__label">後手<br />持ち駒</span>
+        <span class="hand__label" data-role="hand-label-gote"></span>
         <div class="hand__pieces" data-role="hand-gote"></div>
       </section>
       <div class="board-wrap">
         <div class="board" data-role="board"></div>
       </div>
       <section class="hand hand--sente">
-        <span class="hand__label">先手<br />持ち駒</span>
+        <span class="hand__label" data-role="hand-label-sente"></span>
         <div class="hand__pieces" data-role="hand-sente"></div>
       </section>
       <p class="status">
@@ -120,9 +123,9 @@ export class View {
       </p>
       <div class="modes" data-role="modes"></div>
       <div class="actions">
-        <button data-role="undo">待った</button>
-        <button data-role="pass">パス</button>
-        <button class="danger" data-role="resign">投了</button>
+        <button data-role="undo" data-i18n="action.undo"></button>
+        <button data-role="pass" data-i18n="action.pass"></button>
+        <button class="danger" data-role="resign" data-i18n="action.resign"></button>
       </div>
       <div class="chain-banner" data-role="chain" hidden></div>
       <div class="overlay" data-role="overlay" hidden>
@@ -130,7 +133,7 @@ export class View {
           <p class="overlay__title" data-role="result-title"></p>
           <p class="overlay__reason" data-role="result-reason"></p>
           <p class="overlay__stats" data-role="result-stats"></p>
-          <button data-role="rematch">もう一局</button>
+          <button data-role="rematch" data-i18n="action.rematch"></button>
         </div>
       </div>
     `;
@@ -162,11 +165,11 @@ export class View {
     this.animateButton = this.query<HTMLButtonElement>(root, 'animate');
     this.muteButton = this.query<HTMLButtonElement>(root, 'mute');
     this.modeBar = this.query<HTMLDivElement>(root, 'modes');
-    for (const mode of ['local', 'easy', 'normal', 'hard'] as const) {
+    for (const mode of OPPONENT_MODES) {
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.mode = mode;
-      button.textContent = OPPONENT_LABELS[mode];
+      button.dataset.i18n = `mode.${mode}`;
       button.addEventListener('click', () => this.handlers.onMode(mode));
       this.modeBar.append(button);
     }
@@ -179,6 +182,11 @@ export class View {
     this.resignButton.addEventListener('click', () => this.handlers.onResign());
     this.animateButton.addEventListener('click', () => this.handlers.onToggleAnimate());
     this.muteButton.addEventListener('click', () => this.handlers.onToggleMute());
+    this.query<HTMLButtonElement>(root, 'lang').addEventListener('click', () =>
+      this.handlers.onToggleLang(),
+    );
+    this.root = root;
+    applyTranslations(root);
     this.query<HTMLButtonElement>(root, 'rematch').addEventListener('click', () =>
       this.handlers.onRematch(),
     );
@@ -194,6 +202,12 @@ export class View {
   }
 
   render(model: ViewModel): void {
+    applyTranslations(this.root);
+    for (const owner of ['sente', 'gote'] as const) {
+      const label = this.root.querySelector<HTMLElement>(`[data-role="hand-label-${owner}"]`);
+      if (label) label.innerText = t('hand.label', { color: t(`color.${owner}`) });
+    }
+
     model.cells.forEach((cellView, index) => {
       const cell = this.cells[index];
       if (!cell) return;
@@ -218,6 +232,7 @@ export class View {
     this.resignButton.disabled = !model.canResign;
     this.animateButton.textContent = model.animateLabel;
     this.muteButton.textContent = model.muteLabel;
+    this.query<HTMLButtonElement>(this.root, 'lang').textContent = model.langLabel;
 
     for (const button of this.modeBar.querySelectorAll<HTMLButtonElement>('button')) {
       button.setAttribute('aria-pressed', String(button.dataset.mode === model.mode));
@@ -237,8 +252,11 @@ export class View {
         tile.className = 'cell__piece';
         cell.append(tile);
       }
-      const kanji = PIECE_KANJI[piece.type];
+      const kanji = pieceKanji(piece.type);
       if (tile.textContent !== kanji) tile.textContent = kanji;
+      const roman = pieceRoman(piece.type);
+      if (roman === null) tile.removeAttribute('data-roman');
+      else tile.dataset.roman = roman;
       tile.dataset.owner = piece.owner;
       tile.dataset.promoted = String(piece.type.startsWith('+'));
       tile.dataset.guarded = String(view.guarded);
@@ -265,7 +283,7 @@ export class View {
   ): void {
     const visible = chips.filter((chip) => chip.count > 0);
     if (visible.length === 0) {
-      slot.innerHTML = '<span class="hand__empty">なし</span>';
+      slot.innerHTML = `<span class="hand__empty">${t('hand.empty')}</span>`;
       return;
     }
 
@@ -278,8 +296,10 @@ export class View {
         button.type = 'button';
         button.disabled = !chip.enabled;
         button.setAttribute('aria-pressed', String(chip.selected));
+        const roman = pieceRoman(piece);
         button.innerHTML =
-          `<span class="chip__kanji">${PIECE_KANJI[piece]}</span>` +
+          `<span class="chip__kanji"${roman ? ` data-roman="${roman}"` : ''}>` +
+          `${pieceKanji(piece)}</span>` +
           `<span class="chip__count">${chip.count}</span>`;
         button.addEventListener('click', () => this.handlers.onHand(owner, piece));
         return [button];
@@ -289,7 +309,7 @@ export class View {
 
   /** 3連鎖以上のときだけ出す演出。 */
   showChainBanner(chainCount: number): void {
-    this.chainBanner.innerHTML = `<span>${chainCount} 連鎖!</span>`;
+    this.chainBanner.innerHTML = `<span>${t('chain.banner', { count: chainCount })}</span>`;
     this.chainBanner.hidden = false;
     window.setTimeout(() => {
       this.chainBanner.hidden = true;
