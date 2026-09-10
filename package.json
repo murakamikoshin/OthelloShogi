@@ -13,7 +13,8 @@
     "cli": "node --experimental-strip-types tools/cli.ts",
     "balance": "node --experimental-strip-types tools/balance.ts",
     "uitest": "node tools/uitest.mjs",
-    "selfplay": "node --experimental-strip-types tools/selfplay.ts"
+    "selfplay": "node --experimental-strip-types tools/selfplay.ts",
+    "ogp": "node tools/ogp.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.5.0",
