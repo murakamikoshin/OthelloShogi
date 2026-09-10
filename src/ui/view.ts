@@ -46,15 +46,27 @@ export interface ViewModel {
   readonly animateLabel: string;
   readonly muteLabel: string;
   readonly langLabel: string;
+  /** オンライン対戦の持ち時間表示（していないときは null） */
+  readonly clock: Readonly<Record<'sente' | 'gote', string>> | null;
+  /** 対局者の名前（オンライン対戦のときだけ） */
+  readonly names: Readonly<Record<'sente' | 'gote', string>> | null;
+  /** マッチング中などの案内。無ければ null */
+  readonly banner: string | null;
   readonly mode: OpponentMode;
   /** AI が考えているあいだ true */
   readonly thinking: boolean;
 }
 
 /** 対戦相手。local = 同じ端末で2人。 */
-export type OpponentMode = 'local' | 'easy' | 'normal' | 'hard';
+export type OpponentMode = 'local' | 'easy' | 'normal' | 'hard' | 'online';
 
-export const OPPONENT_MODES: readonly OpponentMode[] = ['local', 'easy', 'normal', 'hard'];
+export const OPPONENT_MODES: readonly OpponentMode[] = [
+  'local',
+  'easy',
+  'normal',
+  'hard',
+  'online',
+];
 
 export interface ViewHandlers {
   onCell(row: number, col: number): void;
@@ -107,13 +119,16 @@ export class View {
       <section class="hand hand--gote">
         <span class="hand__label" data-role="hand-label-gote"></span>
         <div class="hand__pieces" data-role="hand-gote"></div>
+        <span class="clock" data-role="clock-gote" hidden></span>
       </section>
+      <p class="banner" data-role="banner" hidden></p>
       <div class="board-wrap">
         <div class="board" data-role="board"></div>
       </div>
       <section class="hand hand--sente">
         <span class="hand__label" data-role="hand-label-sente"></span>
         <div class="hand__pieces" data-role="hand-sente"></div>
+        <span class="clock" data-role="clock-sente" hidden></span>
       </section>
       <p class="status">
         <span class="status__turn" data-role="turn"></span>
@@ -205,7 +220,11 @@ export class View {
     applyTranslations(this.root);
     for (const owner of ['sente', 'gote'] as const) {
       const label = this.root.querySelector<HTMLElement>(`[data-role="hand-label-${owner}"]`);
-      if (label) label.innerText = t('hand.label', { color: t(`color.${owner}`) });
+      if (label) {
+        label.innerText = model.names
+          ? `${model.names[owner]}\n${t(`color.${owner}`)}`
+          : t('hand.label', { color: t(`color.${owner}`) });
+      }
     }
 
     model.cells.forEach((cellView, index) => {
@@ -223,6 +242,23 @@ export class View {
     this.statusTurn.dataset.thinking = String(model.thinking);
     this.statusHint.textContent = model.hint;
     this.statusCounts.textContent = model.counts;
+
+    for (const owner of ['sente', 'gote'] as const) {
+      const clock = this.root.querySelector<HTMLElement>(`[data-role="clock-${owner}"]`);
+      if (clock) {
+        clock.hidden = model.clock === null;
+        if (model.clock) {
+          clock.textContent = model.clock[owner];
+          clock.dataset.active = String(model.turnColor === owner);
+        }
+      }
+    }
+
+    const banner = this.root.querySelector<HTMLElement>('[data-role="banner"]');
+    if (banner) {
+      banner.hidden = model.banner === null;
+      banner.textContent = model.banner ?? '';
+    }
 
     this.confirmButton.hidden = model.confirmLabel === null;
     if (model.confirmLabel !== null) this.confirmButton.textContent = model.confirmLabel;

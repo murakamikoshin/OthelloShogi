@@ -33,8 +33,10 @@ import {
   samePos,
   simulateDrop,
 } from '../core/index.ts';
+import type { ClockState, MatchServerMessage, PlayerInfo } from '../../worker/protocol.ts';
 import type { Difficulty } from '../ai/search.ts';
 import { AiClient } from './ai-client.ts';
+import { OnlineSession, loadIdentity, type Identity } from './online.ts';
 import { initLang, languageCode, nextLang, peekNextLang, t } from '../i18n/index.ts';
 import { colorName, resultReason, resultTitle } from './labels.ts';
 import { Sound } from './sound.ts';
@@ -49,6 +51,12 @@ const MODE_KEY = 'negaeri:mode';
 
 /** AI が受け持つ側。人間はいつも先手。 */
 const AI_COLOR: Color = 'gote';
+
+/** 持ち時間を mm:ss にする。 */
+function formatClock(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
 
 /** 指し手が一瞬で返ってきても、指した感じが出るように少し待つ。 */
 const AI_MIN_THINK_MS = 260;
@@ -74,6 +82,15 @@ export class App {
   private thinking = false;
   private readonly ai = new AiClient();
   private readonly sound = new Sound();
+  private online: OnlineSession | null = null;
+  private identity: Identity | null = null;
+  private onlinePlayers: Readonly<Record<Color, PlayerInfo>> | null = null;
+  private onlineColor: Color = 'sente';
+  private clock: ClockState | null = null;
+  /** 時計の基準時刻。ここからの経過を手番側から引いて表示する */
+  private clockAt = 0;
+  private clockTimer: number | null = null;
+  private banner: string | null = null;
   private readonly view: View;
 
   constructor(root: HTMLElement) {
@@ -109,6 +126,9 @@ export class App {
   private get humanTurn(): boolean {
     if (this.busy || this.thinking) return false;
     if (this.state.result.kind !== 'playing') return false;
+    if (this.mode === 'online') {
+      return this.onlinePlayers !== null && this.state.turn === this.onlineColor;
+    }
     return this.mode === 'local' || this.state.turn !== AI_COLOR;
   }
 
@@ -181,7 +201,12 @@ export class App {
 
   private handleResign(): void {
     if (this.state.result.kind !== 'playing') return;
-    if (!window.confirm(t('confirm.resign', { color: colorName(this.state.turn) }))) return;
+    const who = this.mode === 'online' ? this.onlineColor : this.state.turn;
+    if (!window.confirm(t('confirm.resign', { color: colorName(who) }))) return;
+    if (this.mode === 'online') {
+      this.online?.resign();
+      return;
+    }
     this.history.push(this.state);
     this.state = resign(this.state, this.state.turn);
     this.selection = { kind: 'none' };
@@ -191,12 +216,147 @@ export class App {
 
   private setMode(mode: OpponentMode): void {
     if (this.thinking || this.mode === mode) return;
+    this.leaveOnline();
     this.mode = mode;
     window.localStorage.setItem(MODE_KEY, mode);
     this.ai.reset();
     this.selection = { kind: 'none' };
+
+    if (mode === 'online') {
+      void this.startOnline();
+      return;
+    }
+
+    this.state = initialGameState();
+    this.history = [];
+    this.lastMove = null;
+    this.justFlipped = [];
     this.render();
     void this.maybeLetAiMove();
+  }
+
+  /** オンライン対戦をやめて、後片付けする。 */
+  private leaveOnline(): void {
+    this.online?.stop();
+    this.online = null;
+    this.onlinePlayers = null;
+    this.clock = null;
+    this.banner = null;
+    if (this.clockTimer !== null) {
+      window.clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    }
+  }
+
+  private async startOnline(): Promise<void> {
+    this.banner = t('online.connecting');
+    this.state = initialGameState();
+    this.history = [];
+    this.lastMove = null;
+    this.justFlipped = [];
+    this.render();
+
+    try {
+      this.identity ??= await loadIdentity();
+    } catch {
+      this.banner = t('online.error', { message: t('online.connecting') });
+      this.render();
+      return;
+    }
+
+    this.online = new OnlineSession(this.identity, {
+      onSearching: (range, waitedMs) => {
+        this.banner = t('online.searching', {
+          range,
+          seconds: Math.floor(waitedMs / 1000),
+        });
+        this.render();
+      },
+      onStart: (you, players) => {
+        this.onlineColor = you;
+        this.onlinePlayers = players;
+        const opponent = players[you === 'sente' ? 'gote' : 'sente'];
+        this.banner = t('online.matched', { name: opponent.name, rating: opponent.rating });
+        this.startClockTicking();
+        this.render();
+      },
+      onState: (state, clock, lastMove, chainCount) => {
+        void this.onOnlineState(state, clock, lastMove, chainCount);
+      },
+      onOpponentLeft: (graceMs) => {
+        this.banner = t('online.opponentLeft', { seconds: Math.round(graceMs / 1000) });
+        this.render();
+      },
+      onOpponentBack: () => {
+        this.banner = t('online.opponentBack');
+        this.render();
+      },
+      onOver: (message) => this.onOnlineOver(message),
+      onError: (message) => {
+        this.banner = t('online.error', { message });
+        this.render();
+      },
+    });
+    this.online.start();
+  }
+
+  /** サーバから届いた局面を反映する。反転は同じ演出で見せる。 */
+  private async onOnlineState(
+    state: GameState,
+    clock: ClockState,
+    lastMove: Move | null,
+    chainCount: number,
+  ): Promise<void> {
+    const before = this.state;
+    this.clock = clock;
+    this.clockAt = Date.now();
+    this.selection = { kind: 'none' };
+    this.lastMove = lastMove && lastMove.kind !== 'pass' ? lastMove.to : null;
+
+    if (lastMove?.kind === 'drop') {
+      this.sound.unlock();
+      this.sound.play('place');
+      if (chainCount > 0 && this.animate) {
+        this.busy = true;
+        await this.animateChain(before, lastMove.piece, lastMove.to, chainCount);
+        this.busy = false;
+      }
+    } else if (lastMove?.kind === 'move') {
+      this.sound.play('move');
+    }
+
+    this.state = state;
+    this.justFlipped = [];
+    this.render();
+
+    if (chainCount >= 3) {
+      this.view.showChainBanner(chainCount);
+      this.sound.play('chain');
+    }
+  }
+
+  private onOnlineOver(message: Extract<MatchServerMessage, { type: 'over' }>): void {
+    this.state = { ...this.state, result: message.result };
+    const delta = message.ratingDelta[this.onlineColor];
+    const rating = message.newRating[this.onlineColor];
+    this.banner = t('online.ratingDelta', {
+      rating,
+      delta: delta >= 0 ? `+${delta}` : String(delta),
+    });
+    if (this.clockTimer !== null) {
+      window.clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    }
+    this.render();
+    this.showResult();
+  }
+
+  /** 手番側の残り時間を毎秒減らして見せる。 */
+  private startClockTicking(): void {
+    if (this.clockTimer !== null) return;
+    this.clockTimer = window.setInterval(() => {
+      if (this.clock) this.render();
+    }, 500);
   }
 
   private toggleLang(): void {
@@ -234,6 +394,12 @@ export class App {
   }
 
   private rematch(): void {
+    if (this.mode === 'online') {
+      this.leaveOnline();
+      void this.startOnline();
+      this.view.hideResult();
+      return;
+    }
     this.ai.reset();
     this.state = initialGameState();
     this.history = [];
@@ -247,7 +413,7 @@ export class App {
 
   /** AI の手番なら考えさせて指させる。 */
   private async maybeLetAiMove(): Promise<void> {
-    if (this.mode === 'local') return;
+    if (this.mode === 'local' || this.mode === 'online') return;
     if (this.state.result.kind !== 'playing') return;
     if (this.state.turn !== AI_COLOR) return;
     if (this.thinking || this.busy) return;
@@ -256,6 +422,7 @@ export class App {
     this.render();
 
     const difficulty: Difficulty = this.mode;
+
     const asked = this.state;
     let move: Move | null = null;
     try {
@@ -285,6 +452,14 @@ export class App {
 
   private async play(move: Move): Promise<void> {
     if (this.busy || this.state.result.kind !== 'playing') return;
+
+    // オンラインでは自分で局面を進めない。サーバが検証して返してきたものだけを反映する
+    if (this.mode === 'online') {
+      this.selection = { kind: 'none' };
+      this.online?.sendMove(move);
+      this.render();
+      return;
+    }
 
     const before = this.state;
     const outcome = applyMoveWithDetail(before, move);
@@ -444,7 +619,8 @@ export class App {
       hint: this.hint(animating),
       counts: `${counts.sente} : ${counts.gote}`,
       confirmLabel: this.selection.kind === 'drop' && !animating ? t('action.confirm') : null,
-      canUndo: this.history.length > 0 && !animating && !this.thinking,
+      canUndo:
+        this.mode !== 'online' && this.history.length > 0 && !animating && !this.thinking,
       canPass: this.humanTurn && mustPass(state),
       canResign: playing && !animating && !this.thinking,
       animateLabel: this.animate ? '✨' : '💤',
@@ -452,6 +628,21 @@ export class App {
       langLabel: languageCode(peekNextLang()),
       mode: this.mode,
       thinking: this.thinking,
+      clock: this.clockLabels(),
+      names: this.onlinePlayers
+        ? { sente: this.onlinePlayers.sente.name, gote: this.onlinePlayers.gote.name }
+        : null,
+      banner: this.banner,
+    };
+  }
+
+  private clockLabels(): Readonly<Record<Color, string>> | null {
+    if (!this.clock) return null;
+    const elapsed = this.state.result.kind === 'playing' ? Date.now() - this.clockAt : 0;
+    const turn = this.state.turn;
+    return {
+      sente: formatClock(this.clock.sente - (turn === 'sente' ? elapsed : 0)),
+      gote: formatClock(this.clock.gote - (turn === 'gote' ? elapsed : 0)),
     };
   }
 
@@ -461,6 +652,10 @@ export class App {
     const { state } = this;
     if (state.result.kind !== 'playing') return resultReason(state.result);
     if (mustPass(state)) return t('hint.mustPass');
+    if (this.mode === 'online' && this.onlinePlayers) {
+      if (state.turn !== this.onlineColor) return t('online.waiting');
+      if (this.selection.kind === 'none') return t('online.yourTurn');
+    }
 
     switch (this.selection.kind) {
       case 'drop': {

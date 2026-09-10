@@ -139,8 +139,8 @@ button.ghost {
 
 .modes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
 }
 
 .modes button {
@@ -213,6 +213,38 @@ button.ghost {
 .hand__empty {
   font-size: 12px;
   color: var(--ink-soft);
+}
+
+.clock {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink-soft);
+  min-width: 58px;
+  text-align: center;
+}
+
+.clock[data-active='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.banner {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: center;
+}
+
+.modes {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .chip {

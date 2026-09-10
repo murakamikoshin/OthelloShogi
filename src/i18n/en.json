@@ -60,5 +60,15 @@
   "piece.B": "角",
   "piece.+P": "と",
   "piece.+R": "竜",
-  "piece.+B": "馬"
+  "piece.+B": "馬",
+  "mode.online": "Online",
+  "online.connecting": "Connecting…",
+  "online.searching": "Looking for an opponent (±{range} rating, {seconds}s)",
+  "online.matched": "vs {name} (rating {rating})",
+  "online.opponentLeft": "Opponent disconnected. Waiting {seconds}s",
+  "online.opponentBack": "Opponent is back",
+  "online.yourTurn": "Your move",
+  "online.waiting": "Opponent's move",
+  "online.ratingDelta": "Rating {rating} ({delta})",
+  "online.error": "Connection error: {message}"
 }
