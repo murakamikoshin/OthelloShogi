@@ -1,0 +1,37 @@
+{
+  // Cloudflare Workers の設定。
+  //   npx wrangler dev      ローカルで動かす
+  //   npx wrangler deploy   デプロイ
+  //
+  // 事前に必要なもの:
+  //   npx wrangler d1 create negaeri            → database_id をここに書く
+  //   npx wrangler d1 execute negaeri --file=worker/schema.sql --remote
+  //   npx wrangler secret put TOKEN_SECRET      → 署名トークンの秘密鍵
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "negaeri-shogi",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-09-01",
+  "observability": { "enabled": true },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "negaeri",
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "MATCH", "class_name": "MatchRoom" },
+      { "name": "LOBBY", "class_name": "Lobby" }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MatchRoom", "Lobby"]
+    }
+  ]
+}

@@ -9,19 +9,25 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p worker/tsconfig.json --noEmit",
     "cli": "node --experimental-strip-types tools/cli.ts",
     "balance": "node --experimental-strip-types tools/balance.ts",
     "uitest": "node tools/uitest.mjs",
     "selfplay": "node --experimental-strip-types tools/selfplay.ts",
-    "ogp": "node tools/ogp.mjs"
+    "ogp": "node tools/ogp.mjs",
+    "servertest": "node --experimental-strip-types tools/servertest.mjs",
+    "worker:dev": "wrangler dev --local",
+    "worker:deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute negaeri --file=worker/schema.sql --local"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260910.1",
     "@types/node": "^26.5.0",
     "playwright": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.131.0"
   },
   "description": "寝返り将棋 — 挟まれた駒は敵に寝返り、出世する"
 }

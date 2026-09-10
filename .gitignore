@@ -5,3 +5,5 @@ dist/
 .vite/
 coverage/
 .uitest/
+.dev.vars
+.wrangler/

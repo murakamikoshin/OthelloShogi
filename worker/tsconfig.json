@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // Workers は DOM ではなく Cloudflare の実行環境
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "vitest/globals"]
+  },
+  // ルールエンジンは worker からも import するので型検査の対象に含めるが、
+  // テストは Node の API を使うのでここでは見ない（ルート側の tsc が見る）
+  "include": [".", "../src/core/**/*.ts"],
+  "exclude": ["../src/core/**/*.test.ts", "../src/core/test-helpers.ts"]
+}

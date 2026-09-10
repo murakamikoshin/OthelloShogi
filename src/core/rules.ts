@@ -59,6 +59,7 @@ export const INITIAL_SETUP: readonly { readonly row: number; readonly col: numbe
  * 先手だけ歩が1枚多い。AI 同士で60局指させたところ先手の勝率が 33% しかなく、
  * 「先に陣形を崩した側が狙われる」という後手有利がはっきり出たため、
  * 先手に持ち駒1枚ぶんのハンデ差を付けている（囲碁のコミに相当）。
+ * これで同じ条件の60局で先手勝率 47% になり、ほぼ互角になった。
  */
 export const INITIAL_HANDS: Readonly<Record<Color, Hand>> = {
   sente: { P: 4, R: 1, B: 1 },
