@@ -43,11 +43,15 @@ await page.goto(url, { waitUntil: 'networkidle' });
 await shot('01-initial');
 check('初期の手番', await page.locator('.status__turn').textContent(), '先手番');
 
+// 開始局面では両陣の12枚が並んでいる
+check('開始局面の駒数', await page.locator('.cell__piece').count(), 12);
+check('玉に守られた駒の数', await page.locator('.cell__piece[data-guarded="true"]').count(), 10);
+
 // 持ち駒を選ぶと打てるマスが出る
 await chip('sente', '飛').click();
 await page.waitForTimeout(120);
 const dropTargets = await page.locator('.cell[data-target="true"]').count();
-check('飛を打てるマス数（盤32マスが空）', dropTargets, 32);
+check('飛を打てるマス数（空マスの数）', dropTargets, 24);
 await shot('02-drop-targets');
 
 // 打つ前にプレビューが出る

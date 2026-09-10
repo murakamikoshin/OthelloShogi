@@ -31,6 +31,7 @@ import type { FlipDirectionMode } from './rules.ts';
 import {
   BOARD_SIZE,
   FLIP_DIRECTION_MODE,
+  KING_GUARDS_NEIGHBORS,
   MAX_CHAIN,
   SLIDE_FLIP_RANGE,
   STEP_FLIP_RANGE,
@@ -122,6 +123,7 @@ function scanRay(
   origin: Pos,
   ray: FlipRay,
   color: Color,
+  kingGuards: boolean,
 ): number[] {
   const [dr, dc] = ray.dir;
   const line: number[] = [];
@@ -141,6 +143,9 @@ function scanRay(
 
     // 相手の玉 → 経路を遮断。この方向は不成立。
     if (square.type === 'K') return [];
+
+    // 相手の玉に隣接している駒は寝返らない。玉と同じく経路を遮断する。
+    if (kingGuards && isKingGuarded(board, row, col, square.owner)) return [];
 
     line.push(index);
     row += dr;
@@ -172,6 +177,7 @@ export function collectFlipStep(
   alreadyFlipped: ReadonlySet<number> = new Set(),
   ranges: FlipRanges = DEFAULT_FLIP_RANGES,
   mode: FlipDirectionMode = FLIP_DIRECTION_MODE,
+  kingGuards: boolean = KING_GUARDS_NEIGHBORS,
 ): number[] {
   const found = new Set<number>();
 
@@ -181,7 +187,7 @@ export function collectFlipStep(
     if (!piece || piece.type === 'K' || piece.owner !== color) continue;
 
     for (const ray of flipRays(piece.type, piece.owner, ranges, mode)) {
-      for (const index of scanRay(board, origin, ray, color)) {
+      for (const index of scanRay(board, origin, ray, color, kingGuards)) {
         // 同一の駒は1手番中に2回以上反転しない
         if (alreadyFlipped.has(index)) continue;
         found.add(index);
@@ -190,6 +196,48 @@ export function collectFlipStep(
   }
 
   return [...found].sort((a, b) => a - b);
+}
+
+/**
+ * その駒が「自分の玉に隣接していて寝返らない」状態か。
+ * 玉のまわりを安定地帯にするためのルール（rules.ts の KING_GUARDS_NEIGHBORS）。
+ */
+export function isKingGuarded(board: Board, row: number, col: number, owner: Color): boolean {
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      const r = row + dr;
+      const c = col + dc;
+      if (!isInside(r, c)) continue;
+      const square = board[r * BOARD_SIZE + c];
+      if (square && square.type === 'K' && square.owner === owner) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * そのマスに打ったとき、1枚でも裏返る可能性があるか。
+ *
+ * 挟みは打ったマスから外側に走査するので、成立するには
+ * **隣のマスに「玉ではない相手の駒」がある**ことが必ず必要
+ * （空マスならその方向は打ち切り、自分の駒なら間に何も無い、相手の玉なら遮断）。
+ *
+ * 必要条件であって十分条件ではない。AI の探索や UI のバッジ計算で、
+ * 明らかに無駄な挟み判定を省くための足切りに使う。
+ */
+export function mayFlipAt(board: Board, at: Pos, color: Color): boolean {
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      const row = at.row + dr;
+      const col = at.col + dc;
+      if (!isInside(row, col)) continue;
+      const square = board[row * BOARD_SIZE + col];
+      if (square && square.owner !== color && square.type !== 'K') return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -220,6 +268,7 @@ export interface ChainOptions {
   readonly maxChain?: number;
   readonly ranges?: FlipRanges;
   readonly mode?: FlipDirectionMode;
+  readonly kingGuards?: boolean;
 }
 
 /**
@@ -238,6 +287,7 @@ export function resolveChain(
   const maxChain = options.maxChain ?? MAX_CHAIN;
   const ranges = options.ranges ?? DEFAULT_FLIP_RANGES;
   const mode = options.mode ?? FLIP_DIRECTION_MODE;
+  const kingGuards = options.kingGuards ?? KING_GUARDS_NEIGHBORS;
 
   const flippedThisTurn = new Set<number>();
   const steps: Pos[][] = [];
@@ -246,7 +296,15 @@ export function resolveChain(
   let chainCount = 0;
 
   while (origins.length > 0 && chainCount < maxChain) {
-    const newlyFlipped = collectFlipStep(current, origins, color, flippedThisTurn, ranges, mode);
+    const newlyFlipped = collectFlipStep(
+      current,
+      origins,
+      color,
+      flippedThisTurn,
+      ranges,
+      mode,
+      kingGuards,
+    );
     if (newlyFlipped.length === 0) break;
 
     // この段の反転は「同時に」適用する
@@ -289,7 +347,12 @@ export function simulateDrop(
 ): ChainResult {
   const index = at.row * BOARD_SIZE + at.col;
   if (board[index]) return { board, ...NO_CHAIN };
+
   const withDrop = board.slice();
   withDrop[index] = { type: piece, owner: color }; // 打つときは常に不成
+
+  // 隣に裏返せる相手の駒が1枚も無ければ、挟み判定をするまでもなく反転は起きない
+  if (!mayFlipAt(board, at, color)) return { board: withDrop, ...NO_CHAIN };
+
   return resolveChain(withDrop, at, color, options);
 }

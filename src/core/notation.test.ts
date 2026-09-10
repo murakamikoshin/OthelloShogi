@@ -55,13 +55,20 @@ describe('棋譜の読み込み', () => {
       13-23   # 後手が歩を進める
       42-32   # 先手が歩を進める
     `);
-    const finalState = kifu.reduce(applyMove, initialGameState());
+    const start = initialGameState();
+    const finalState = kifu.reduce(applyMove, start);
 
     expect(pieceOn(finalState.board, 3, 3)).toEqual({ type: 'B', owner: 'sente' });
     expect(pieceOn(finalState.board, 2, 3)).toEqual({ type: 'P', owner: 'gote' });
     expect(pieceOn(finalState.board, 3, 2)).toEqual({ type: 'P', owner: 'sente' });
     expect(finalState.hands.sente.B).toBe(INITIAL_HAND.B - 1);
-    expect(countPieces(finalState.board)).toEqual({ sente: 3, gote: 2 });
+
+    // 打った角のぶんだけ先手が1枚増え、取り合いは起きていない
+    const before = countPieces(start.board);
+    expect(countPieces(finalState.board)).toEqual({
+      sente: before.sente + 1,
+      gote: before.gote,
+    });
     expect(finalState.ply).toBe(3);
     expect(finalState.turn).toBe('gote');
   });

@@ -24,6 +24,7 @@ import {
   dropDestinations,
   indexOf,
   initialGameState,
+  isKingGuarded,
   legalMoves,
   mustPass,
   pieceAt,
@@ -283,14 +284,24 @@ export class App {
 
     const cells: CellView[] = [];
     for (let index = 0; index < BOARD_SIZE * BOARD_SIZE; index += 1) {
+      const piece = board[index] ?? null;
       cells.push({
-        piece: board[index] ?? null,
+        piece,
         selected: selectedIndex === index,
         target: targets.has(index),
         flipLevel: flipLevels.get(index) ?? null,
         gain: gains.get(index) ?? null,
         justFlipped: justFlippedSet.has(index),
         last: lastIndex === index,
+        guarded:
+          piece !== null &&
+          piece.type !== 'K' &&
+          isKingGuarded(
+            board,
+            Math.floor(index / BOARD_SIZE),
+            index % BOARD_SIZE,
+            piece.owner,
+          ),
       });
     }
 
@@ -308,12 +319,15 @@ export class App {
         enabled: playing && owner === state.turn && !animating,
       }));
 
+    const counts = countPieces(board);
+
     return {
       cells,
       hands: { sente: buildHand('sente'), gote: buildHand('gote') },
       turnLabel: playing ? `${COLOR_NAME[state.turn]}番` : resultTitle(state.result),
       turnColor: state.turn,
       hint: this.hint(animating),
+      counts: `${counts.sente} 対 ${counts.gote}`,
       confirmLabel: this.selection.kind === 'drop' && !animating ? '打つ' : null,
       canUndo: this.history.length > 0 && !animating,
       canPass: playing && mustPass(state) && !animating,

@@ -246,6 +246,13 @@ button.ghost {
   color: var(--promoted);
 }
 
+/* 自分の玉の隣にいて寝返らない駒。内側の細い線で「安全地帯」を示す */
+.cell__piece[data-guarded='true'] {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 2px rgba(37, 99, 235, 0.45);
+}
+
 /* 選択中の駒 */
 .cell[data-selected='true'] {
   background: var(--accent-soft);
@@ -380,6 +387,16 @@ button.ghost {
 .status__hint {
   color: var(--ink-soft);
   flex: 1 1 auto;
+}
+
+.status__counts {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--ink-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
 }
 
 .confirm {

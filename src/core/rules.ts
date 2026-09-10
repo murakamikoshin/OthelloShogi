@@ -4,7 +4,7 @@
  * ここが「数値の唯一の置き場所」です。盤の広さ・連鎖の上限・反転の距離・持ち駒の枚数は
  * 実際に対局しながら変える前提の値なので、他のファイルに数値を直接書かないこと。
  */
-import type { Hand } from './types.ts';
+import type { BasePieceType, Hand } from './types.ts';
 
 // ---------------------------------------------------------------------------
 // 盤の広さ
@@ -21,18 +21,58 @@ export const BOARD_SIZE = 6;
 /** 盤のマス総数。 */
 export const SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
 
-/** 先手の玉と歩を置く筋。 */
-export const INITIAL_KING_COL_SENTE = Math.floor(BOARD_SIZE / 2) - 1;
+/**
+ * 初期配置（先手ぶん）。後手は盤を180度回した位置に同じ駒を置く。
+ *
+ * 6x6 ならこうなる:
+ *
+ *     c0 c1 c2 c3 c4 c5
+ *   r0  ・ ・ 角 玉 飛 ・   ← 後手
+ *   r1  ・ ・ 歩 歩 歩 ・
+ *   r2  ・ ・ ・ ・ ・ ・
+ *   r3  ・ ・ ・ ・ ・ ・
+ *   r4  ・ 歩 歩 歩 ・ ・
+ *   r5  ・ 飛 玉 角 ・ ・   ← 先手
+ *
+ * 盤を空にして始めると、1手目に飛を打つだけで王手がかかってしまい、
+ * 受け続けるだけの対局になる。玉に守りを付けることで、
+ * 陣形を崩してから攻める将棋らしい流れになり、序盤から駒が接触して反転も起きる。
+ */
+export const INITIAL_SETUP: readonly { readonly row: number; readonly col: number; readonly type: BasePieceType }[] =
+  (() => {
+    const mid = Math.floor(BOARD_SIZE / 2);
+    const back = BOARD_SIZE - 1;
+    return [
+      { row: back, col: mid - 1, type: 'K' },
+      { row: back, col: mid - 2, type: 'R' },
+      { row: back, col: mid, type: 'B' },
+      { row: back - 1, col: mid - 2, type: 'P' },
+      { row: back - 1, col: mid - 1, type: 'P' },
+      { row: back - 1, col: mid, type: 'P' },
+    ] as const;
+  })();
 
-/** 後手の玉と歩を置く筋。 */
-export const INITIAL_KING_COL_GOTE = Math.floor(BOARD_SIZE / 2);
-
-/** 初期持ち駒（両者共通）。盤の埋まり具合＝連鎖の起きやすさを決める一番効く数値。 */
-export const INITIAL_HAND: Hand = { P: 4, R: 2, B: 2 };
+/**
+ * 初期持ち駒（両者共通）。盤の埋まり具合＝反転の起きやすさを決める一番効く数値。
+ * 飛と角は初期配置で盤に出したので、持ち駒は1枚ずつ。
+ */
+export const INITIAL_HAND: Hand = { P: 3, R: 1, B: 1 };
 
 // ---------------------------------------------------------------------------
 // 連鎖反転
 // ---------------------------------------------------------------------------
+
+/**
+ * 玉に隣接している駒は寝返らないか。
+ *
+ * true にすると「自分の玉の隣にいる駒は、玉への忠誠を保つので寝返らない」。
+ * 挟み判定は、その駒に当たった時点でその方向を打ち切る（相手の玉と同じ扱い）。
+ *
+ * これが無いと、玉の守り駒が一手で全部寝返って玉が裸になり、
+ * 序盤で一方的に玉を取られる対局ばかりになる。
+ * 玉のまわりが「安定地帯」になることで、オセロの隅と同じような陣地の取り合いが生まれる。
+ */
+export const KING_GUARDS_NEIGHBORS = true;
 
 /**
  * 1手番で連鎖できる段数の上限。

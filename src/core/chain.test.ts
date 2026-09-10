@@ -195,11 +195,15 @@ describe('連鎖と玉', () => {
       '.  .  .  .  .  .',
       '.  .  K  .  .  .',
     );
-    const result = simulateDrop(b, at(4, 2), 'P', 'sente');
 
+    // 玉ガードを切って、玉そのものが経路を遮断することを確かめる
+    const result = simulateDrop(b, at(4, 2), 'P', 'sente', { kingGuards: false });
     expect(result.chainCount).toBe(1);
     expect(posSet(result.flips)).toEqual(['32']);
     expect(pieceOn(result.board, 3, 1)).toEqual({ type: 'K', owner: 'gote' });
+
+    // 既定では、玉の隣にいる r3c2 の歩がそもそも寝返らないので1段目から起きない
+    expect(simulateDrop(b, at(4, 2), 'P', 'sente').flips).toEqual([]);
   });
 
   it('玉は連鎖の起点にならない', () => {
@@ -247,6 +251,27 @@ describe('連鎖の終了条件', () => {
     expect(posSet(result.flips)).toEqual(['12', '21', '23', '32']);
     // 次の段で起点を調べても何も見つからない
     expect(collectFlipStep(result.board, result.steps[0] ?? [], 'sente')).toEqual([]);
+  });
+
+  it('1枚も裏返らなくても、打った駒はちゃんと盤に乗る', () => {
+    // 反転が起きないマスは挟み判定を省く高速化が入っているので、その分岐の回帰テスト
+    const b = board(
+      '.  .  .  k  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  K  .  .  .',
+    );
+    const result = simulateDrop(b, at(3, 3), 'R', 'sente');
+    expect(result.chainCount).toBe(0);
+    expect(pieceOn(result.board, 3, 3)).toEqual({ type: 'R', owner: 'sente' });
+
+    // 局面遷移でも同じ
+    const s = state({ board: b, hands: hands(hand(0, 1), hand()), turn: 'sente' });
+    const next = applyMoveWithDetail(s, { kind: 'drop', piece: 'R', to: at(3, 3) }).state;
+    expect(pieceOn(next.board, 3, 3)).toEqual({ type: 'R', owner: 'sente' });
+    expect(next.hands.sente.R).toBe(0);
   });
 
   it('そもそも1枚も裏返らなければ連鎖数は 0', () => {

@@ -171,6 +171,54 @@ describe('打ったときの反転', () => {
     expect(flips).toEqual([]);
     expect(pieceOn(next.board, 4, 0)).toEqual({ type: 'P', owner: 'gote' });
     expect(pieceOn(next.board, 3, 0)).toEqual({ type: 'K', owner: 'gote' });
+
+    // 玉ガードを切っても、玉そのものが経路を遮断することは変わらない
+    expect(simulateDrop(s.board, at(5, 0), 'R', 'sente', { kingGuards: false }).flips).toEqual([]);
+  });
+
+  describe('玉に隣接する駒は寝返らない（KING_GUARDS_NEIGHBORS）', () => {
+    //  r2c0 の後手の歩は、後手の玉 r1c1 の隣にいるので寝返らない
+    const guarded = board(
+      '.  .  .  .  .  .',
+      'R  k  .  .  .  .', // 先手の飛（挟みの終端）と、その隣の後手の玉
+      'p  .  .  .  .  .', // 玉の隣にいる後手の歩
+      '.  .  .  .  .  .', // ここに先手が歩を打つ
+      '.  .  .  .  .  .',
+      '.  .  K  .  .  .',
+    );
+
+    it('玉の隣の駒は挟んでも裏返らず、その方向は打ち切りになる', () => {
+      expect(simulateDrop(guarded, at(3, 0), 'P', 'sente').flips).toEqual([]);
+    });
+
+    it('玉ガードを切れば同じ形で裏返る', () => {
+      const result = simulateDrop(guarded, at(3, 0), 'P', 'sente', { kingGuards: false });
+      expect(posSet(result.flips)).toEqual(['20']);
+    });
+
+    it('玉から離れれば寝返る', () => {
+      const far = board(
+        '.  .  .  .  .  .',
+        'R  .  .  .  .  .',
+        'p  .  .  .  .  .', // 玉から離れた後手の歩
+        '.  .  .  .  k  .', // 後手の玉は反対側
+        '.  .  .  .  .  .',
+        '.  .  K  .  .  .',
+      );
+      expect(posSet(simulateDrop(far, at(3, 0), 'P', 'sente').flips)).toEqual(['20']);
+    });
+
+    it('守るのは持ち主の玉だけ。相手の玉が隣にいても寝返る', () => {
+      const b = board(
+        '.  .  .  .  .  .',
+        'R  .  .  .  .  .',
+        'p  .  .  .  .  .', // 後手の歩。隣にいるのは先手の玉
+        '.  K  .  .  k  .', // 先手の玉 r3c1 / 後手の玉は遠い
+        '.  .  .  .  .  .',
+        '.  .  .  .  .  .',
+      );
+      expect(posSet(simulateDrop(b, at(3, 0), 'P', 'sente').flips)).toEqual(['20']);
+    });
   });
 
   it('自分の玉は挟みの終端（アンカー）として機能する', () => {
@@ -228,7 +276,7 @@ describe('打ったときの反転', () => {
   it('裏返った駒は成る（歩→と / 飛→竜 / 角→馬）', () => {
     const s = state({
       board: board(
-        '.  .  .  k  .  .',
+        'k  .  .  .  .  .', // 玉は離しておく（玉の隣の駒は寝返らないため）
         '.  R  b  r  .  .', // 後手の角・飛が裏返って馬・竜になる
         '.  .  .  .  .  .',
         '.  .  .  .  .  .',

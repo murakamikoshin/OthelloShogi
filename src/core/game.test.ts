@@ -13,22 +13,43 @@ import {
   timeout,
   validateMove,
 } from './game.ts';
-import { countPieces, pieceAt } from './board.ts';
-import { INITIAL_HAND } from './rules.ts';
+import { countPieces, findKing, findPieces, pieceAt, samePos } from './board.ts';
+import { destinationsFrom } from './moves.ts';
+import { BOARD_SIZE, INITIAL_HAND, INITIAL_SETUP } from './rules.ts';
 import { at, board, hands, pieceOn, state } from './test-helpers.ts';
 
 describe('初期局面', () => {
-  it('仕様どおりの配置と持ち駒', () => {
+  it('INITIAL_SETUP どおりに並び、後手は点対称に置かれる', () => {
     const s = initialGameState();
-    expect(pieceOn(s.board, 5, 2)).toEqual({ type: 'K', owner: 'sente' });
-    expect(pieceOn(s.board, 4, 2)).toEqual({ type: 'P', owner: 'sente' });
-    expect(pieceOn(s.board, 0, 3)).toEqual({ type: 'K', owner: 'gote' });
-    expect(pieceOn(s.board, 1, 3)).toEqual({ type: 'P', owner: 'gote' });
-    expect(countPieces(s.board)).toEqual({ sente: 2, gote: 2 });
+
+    for (const { row, col, type } of INITIAL_SETUP) {
+      expect(pieceOn(s.board, row, col)).toEqual({ type, owner: 'sente' });
+      expect(pieceOn(s.board, BOARD_SIZE - 1 - row, BOARD_SIZE - 1 - col)).toEqual({
+        type,
+        owner: 'gote',
+      });
+    }
+
+    const total = INITIAL_SETUP.length;
+    expect(countPieces(s.board)).toEqual({ sente: total, gote: total });
     expect(s.hands.sente).toEqual(INITIAL_HAND);
     expect(s.hands.gote).toEqual(INITIAL_HAND);
     expect(s.turn).toBe('sente');
     expect(s.result.kind).toBe('playing');
+  });
+
+  it('開始局面ではどちらの玉にも王手がかかっていない', () => {
+    // 盤が空だと1手目に飛を打つだけで王手がかかってしまうので、その回帰テスト
+    const s = initialGameState();
+    for (const color of ['sente', 'gote'] as const) {
+      const king = findKing(s.board, color);
+      expect(king).not.toBeNull();
+      const foe = color === 'sente' ? 'gote' : 'sente';
+      const attacked = findPieces(s.board, foe).some((from) =>
+        destinationsFrom(s.board, from).some((to) => king !== null && samePos(to, king)),
+      );
+      expect(attacked).toBe(false);
+    }
   });
 
   it('局面は immutable（applyMove は元の局面を変えない）', () => {

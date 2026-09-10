@@ -5,70 +5,57 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, initialGameState, parseKifu } from './index.ts';
-import { countPieces } from './board.ts';
-import { INITIAL_HAND } from './rules.ts';
 import { pieceOn } from './test-helpers.ts';
-import type { GameState, Pos } from './types.ts';
+import type { GameState } from './types.ts';
 
 const SAMPLE = new URL('../../kifu/sample.kifu', import.meta.url);
 const CHAIN = new URL('../../kifu/chain.kifu', import.meta.url);
 
-describe('サンプル棋譜', () => {
-  it('全ての手が合法で、想定どおりの最終局面になる', () => {
-    const moves = parseKifu(readFileSync(SAMPLE, 'utf8'));
-    expect(moves).toHaveLength(7);
+/** 棋譜を最後まで流し込み、途中で起きたことをまとめて返す。 */
+function replay(url: URL) {
+  const moves = parseKifu(readFileSync(url, 'utf8'));
+  let state: GameState = initialGameState();
+  let flips = 0;
+  let captures = 0;
+  let bestChain = 0;
 
-    let state: GameState = initialGameState();
-    const allFlips: Pos[] = [];
-    let captures = 0;
-
-    for (const move of moves) {
-      const outcome = applyMoveWithDetail(state, move);
-      state = outcome.state;
-      allFlips.push(...outcome.flips);
-      if (outcome.captured) captures += 1;
+  moves.forEach((move, index) => {
+    const outcome = applyMoveWithDetail(state, move);
+    flips += outcome.flips.length;
+    if (outcome.captured) captures += 1;
+    bestChain = Math.max(bestChain, outcome.chainCount);
+    state = outcome.state;
+    // 途中で決着したのに手が残っていたら棋譜が壊れている
+    if (state.result.kind !== 'playing' && index < moves.length - 1) {
+      throw new Error(`${index + 1} 手目で決着したのに棋譜が続いています`);
     }
+  });
 
-    // 5手目の飛打ちで1枚だけ反転する
-    expect(allFlips).toHaveLength(1);
-    expect(allFlips[0]).toEqual({ row: 2, col: 3 });
+  return { moves, state, flips, captures, bestChain };
+}
 
-    // 6手目・7手目で駒を取り合う
-    expect(captures).toBe(2);
+describe('サンプル棋譜（AI 同士の実戦1局）', () => {
+  it('全ての手が合法で、玉を取って決着する', () => {
+    const { state, flips, captures, bestChain } = replay(SAMPLE);
 
-    // 反転で手に入れた「と金」が r3c3 まで進んでいる
-    expect(pieceOn(state.board, 3, 3)).toEqual({ type: '+P', owner: 'sente' });
-    // 取った成駒ではない飛が後手の持ち駒に入っている（成りは解ける）
-    expect(state.hands.gote.R).toBe(INITIAL_HAND.R + 1);
-    // 先手は角を打っていないので、取った角のぶんだけ増える
-    expect(state.hands.sente.B).toBe(INITIAL_HAND.B + 1);
-
-    expect(countPieces(state.board)).toEqual({ sente: 4, gote: 1 });
-    expect(state.ply).toBe(7);
-    expect(state.turn).toBe('gote');
-    expect(state.result.kind).toBe('playing');
+    expect(state.result).toEqual({ kind: 'win', winner: 'sente', reason: 'king_captured' });
+    // 取り合いと寝返りの両方が起きる棋譜であること
+    expect(captures).toBeGreaterThanOrEqual(5);
+    expect(flips).toBeGreaterThanOrEqual(8);
+    expect(bestChain).toBeGreaterThanOrEqual(2);
   });
 });
 
 describe('連鎖デモ棋譜', () => {
   it('最後の1手で2連鎖が起き、最大連鎖数が記録される', () => {
-    const moves = parseKifu(readFileSync(CHAIN, 'utf8'));
-    expect(moves).toHaveLength(5);
+    const { moves, state, bestChain } = replay(CHAIN);
 
-    let state: GameState = initialGameState();
-    let lastChain = 0;
-    for (const move of moves) {
-      const outcome = applyMoveWithDetail(state, move);
-      state = outcome.state;
-      lastChain = outcome.chainCount;
-    }
-
-    expect(lastChain).toBe(2);
-    expect(state.lastChainCount).toBe(2);
-    expect(state.maxChainCount).toEqual({ sente: 2, gote: 0 });
-    // 2枚とも先手のと金になっている
-    expect(pieceOn(state.board, 3, 4)).toEqual({ type: '+P', owner: 'sente' });
-    expect(pieceOn(state.board, 3, 3)).toEqual({ type: '+P', owner: 'sente' });
+    expect(moves).toHaveLength(8);
+    expect(bestChain).toBe(2);
+    expect(state.maxChainCount.gote).toBe(2);
+    // 2連鎖で裏返った駒は後手のものになり、成っている
+    expect(pieceOn(state.board, 1, 1)).toEqual({ type: '+P', owner: 'gote' });
+    expect(pieceOn(state.board, 2, 1)).toEqual({ type: '+B', owner: 'gote' });
     expect(state.result.kind).toBe('playing');
   });
 });

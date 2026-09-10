@@ -20,6 +20,8 @@ export interface CellView {
   readonly justFlipped: boolean;
   /** 直前の着手マスか */
   readonly last: boolean;
+  /** 自分の玉に隣接していて寝返らない駒か */
+  readonly guarded: boolean;
 }
 
 export interface HandChipView {
@@ -35,6 +37,7 @@ export interface ViewModel {
   readonly turnLabel: string;
   readonly turnColor: 'sente' | 'gote';
   readonly hint: string;
+  readonly counts: string;
   readonly confirmLabel: string | null;
   readonly canUndo: boolean;
   readonly canPass: boolean;
@@ -60,6 +63,7 @@ export class View {
   private readonly handSlots: Record<'sente' | 'gote', HTMLDivElement>;
   private readonly statusTurn: HTMLSpanElement;
   private readonly statusHint: HTMLSpanElement;
+  private readonly statusCounts: HTMLSpanElement;
   private readonly confirmButton: HTMLButtonElement;
   private readonly undoButton: HTMLButtonElement;
   private readonly passButton: HTMLButtonElement;
@@ -88,6 +92,7 @@ export class View {
       <p class="status">
         <span class="status__turn" data-role="turn"></span>
         <span class="status__hint" data-role="hint"></span>
+        <span class="status__counts" data-role="counts"></span>
         <button class="confirm" data-role="confirm" hidden></button>
       </p>
       <div class="actions">
@@ -125,6 +130,7 @@ export class View {
     };
     this.statusTurn = this.query<HTMLSpanElement>(root, 'turn');
     this.statusHint = this.query<HTMLSpanElement>(root, 'hint');
+    this.statusCounts = this.query<HTMLSpanElement>(root, 'counts');
     this.confirmButton = this.query<HTMLButtonElement>(root, 'confirm');
     this.undoButton = this.query<HTMLButtonElement>(root, 'undo');
     this.passButton = this.query<HTMLButtonElement>(root, 'pass');
@@ -163,6 +169,7 @@ export class View {
     this.statusTurn.textContent = model.turnLabel;
     this.statusTurn.dataset.turn = model.turnColor;
     this.statusHint.textContent = model.hint;
+    this.statusCounts.textContent = model.counts;
 
     this.confirmButton.hidden = model.confirmLabel === null;
     if (model.confirmLabel !== null) this.confirmButton.textContent = model.confirmLabel;
@@ -189,6 +196,7 @@ export class View {
       if (tile.textContent !== kanji) tile.textContent = kanji;
       tile.dataset.owner = piece.owner;
       tile.dataset.promoted = String(piece.type.startsWith('+'));
+      tile.dataset.guarded = String(view.guarded);
     }
 
     this.toggleAttr(cell, 'data-selected', view.selected ? 'true' : null);

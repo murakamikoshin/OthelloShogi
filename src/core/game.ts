@@ -12,7 +12,6 @@ import type {
   Hands,
   Move,
   MoveOutcome,
-  Piece,
   Pos,
   Square,
   WinReason,
@@ -38,8 +37,7 @@ import { simulateDrop } from './flip.ts';
 import { destinationsFrom, generateMoves } from './moves.ts';
 import {
   INITIAL_HAND,
-  INITIAL_KING_COL_GOTE,
-  INITIAL_KING_COL_SENTE,
+  INITIAL_SETUP,
   BOARD_SIZE,
   PASS_LIMIT,
   REPETITION_LIMIT,
@@ -55,20 +53,19 @@ const NO_FLIPS = { flips: [], flipSteps: [], chainCount: 0 } as const;
 // ---------------------------------------------------------------------------
 
 /**
- * 初期盤面。6x6 なら 先手: 玉(5,2) 歩(4,2) / 後手: 玉(0,3) 歩(1,3)。
- * 盤の広さ（rules.ts の BOARD_SIZE）を変えても同じ形になるよう導出している。
+ * 初期盤面。配置は rules.ts の INITIAL_SETUP が正。
+ * 後手は盤を180度回した位置に同じ駒が並ぶ（本将棋と同じ点対称）。
  */
 export function initialBoard(): Board {
   const board = emptyBoard().slice();
-  const place = (row: number, col: number, piece: Piece): void => {
-    board[indexOf({ row, col })] = piece;
-  };
-  const senteCol = INITIAL_KING_COL_SENTE;
-  const goteCol = INITIAL_KING_COL_GOTE;
-  place(BOARD_SIZE - 1, senteCol, { type: 'K', owner: 'sente' });
-  place(BOARD_SIZE - 2, senteCol, { type: 'P', owner: 'sente' });
-  place(0, goteCol, { type: 'K', owner: 'gote' });
-  place(1, goteCol, { type: 'P', owner: 'gote' });
+  for (const { row, col, type } of INITIAL_SETUP) {
+    board[indexOf({ row, col })] = { type, owner: 'sente' };
+    // 後手は盤を180度回した位置に同じ駒を置く
+    board[indexOf({ row: BOARD_SIZE - 1 - row, col: BOARD_SIZE - 1 - col })] = {
+      type,
+      owner: 'gote',
+    };
+  }
   return board;
 }
 

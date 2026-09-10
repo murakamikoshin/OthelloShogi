@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "cli": "node --experimental-strip-types tools/cli.ts",
     "balance": "node --experimental-strip-types tools/balance.ts",
-    "uitest": "node tools/uitest.mjs"
+    "uitest": "node tools/uitest.mjs",
+    "selfplay": "node --experimental-strip-types tools/selfplay.ts"
   },
   "devDependencies": {
     "@types/node": "^26.5.0",
