@@ -74,6 +74,12 @@ body {
   gap: 8px;
 }
 
+.topbar__buttons {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
 .topbar h1 {
   font-size: 17px;
   margin: 0;
@@ -525,4 +531,161 @@ button.ghost {
 
 [hidden] {
   display: none !important;
+}
+
+/* ---------- ルール説明 ---------- */
+
+.tut__card {
+  max-width: 340px;
+  text-align: left;
+  padding: 20px;
+}
+
+.tut__title {
+  font-size: 19px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.tut__figures {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tut__figures figure {
+  margin: 0;
+  width: 100%;
+  max-width: 190px;
+}
+
+.tut__figures figcaption {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.tut__arrow {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1;
+  margin: 2px 0;
+}
+
+.tut__chain {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--flip);
+  color: #fff;
+  font-weight: 700;
+}
+
+.tut__board {
+  display: grid;
+  gap: 1px;
+  background: var(--board-line);
+  border: 2px solid var(--board-line);
+  border-radius: 3px;
+  aspect-ratio: 1;
+}
+
+.tut__cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--board);
+  aspect-ratio: 1;
+}
+
+.tut__piece {
+  width: 84%;
+  height: 84%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tile);
+  border: 1px solid var(--tile-edge);
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1917;
+}
+
+.tut__piece[data-owner='gote'] {
+  transform: rotate(180deg);
+}
+
+.tut__piece[data-promoted='true'] {
+  color: var(--promoted);
+}
+
+/* 打つマス */
+.tut__cell[data-mark='drop'] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* 寝返るマス（数字は連鎖の段数） */
+.tut__cell:not([data-mark='drop'])[data-mark]::after {
+  content: attr(data-mark);
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--flip);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+}
+
+.tut__cell:not([data-mark='drop'])[data-mark] .tut__piece {
+  outline: 2px solid var(--flip);
+  outline-offset: -1px;
+}
+
+.tut__body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  margin: 14px 0 0;
+}
+
+.tut__dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 16px 0 12px;
+}
+
+.tut__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tile-edge);
+  opacity: 0.4;
+}
+
+.tut__dot[data-on='true'] {
+  opacity: 1;
+  background: var(--accent);
+}
+
+.tut__buttons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tut__buttons .confirm {
+  flex: 1 1 auto;
 }

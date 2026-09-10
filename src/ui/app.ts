@@ -36,6 +36,7 @@ import {
 import type { Difficulty } from '../ai/search.ts';
 import { AiClient } from './ai-client.ts';
 import { COLOR_NAME, resultReason, resultTitle } from './labels.ts';
+import { showTutorial } from './tutorial.ts';
 import { View, type CellView, type OpponentMode, type ViewModel } from './view.ts';
 
 /** 1段ぶんの反転アニメーションにかける時間。 */
@@ -88,8 +89,10 @@ export class App {
       onToggleAnimate: () => this.toggleAnimate(),
       onRematch: () => this.rematch(),
       onMode: (mode) => this.setMode(mode),
+      onHelp: () => showTutorial(true),
     });
     this.render();
+    showTutorial();
   }
 
   // -------------------------------------------------------------------------

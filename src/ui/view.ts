@@ -68,6 +68,7 @@ export interface ViewHandlers {
   onToggleAnimate(): void;
   onRematch(): void;
   onMode(mode: OpponentMode): void;
+  onHelp(): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -91,7 +92,10 @@ export class View {
     root.innerHTML = `
       <header class="topbar">
         <h1>寝返り将棋<span class="subtitle">NEGAERI SHOGI</span></h1>
-        <button class="ghost" data-role="animate"></button>
+        <span class="topbar__buttons">
+          <button class="ghost" data-role="help">遊び方</button>
+          <button class="ghost" data-role="animate"></button>
+        </span>
       </header>
       <section class="hand hand--gote">
         <span class="hand__label">後手<br />持ち駒</span>
@@ -171,6 +175,9 @@ export class View {
     this.animateButton.addEventListener('click', () => this.handlers.onToggleAnimate());
     this.query<HTMLButtonElement>(root, 'rematch').addEventListener('click', () =>
       this.handlers.onRematch(),
+    );
+    this.query<HTMLButtonElement>(root, 'help').addEventListener('click', () =>
+      this.handlers.onHelp(),
     );
   }
 
