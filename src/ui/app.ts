@@ -33,13 +33,22 @@ import {
   samePos,
   simulateDrop,
 } from '../core/index.ts';
+import type { Difficulty } from '../ai/search.ts';
+import { AiClient } from './ai-client.ts';
 import { COLOR_NAME, resultReason, resultTitle } from './labels.ts';
-import { View, type CellView, type ViewModel } from './view.ts';
+import { View, type CellView, type OpponentMode, type ViewModel } from './view.ts';
 
 /** 1段ぶんの反転アニメーションにかける時間。 */
 const CHAIN_STEP_MS = 190;
 
 const ANIMATE_KEY = 'negaeri:animate';
+const MODE_KEY = 'negaeri:mode';
+
+/** AI が受け持つ側。人間はいつも先手。 */
+const AI_COLOR: Color = 'gote';
+
+/** 指し手が一瞬で返ってきても、指した感じが出るように少し待つ。 */
+const AI_MIN_THINK_MS = 260;
 
 type Selection =
   | { kind: 'none' }
@@ -58,10 +67,17 @@ export class App {
   private busy = false;
   private lastMove: Pos | null = null;
   private justFlipped: readonly Pos[] = [];
+  private mode: OpponentMode = 'local';
+  private thinking = false;
+  private readonly ai = new AiClient();
   private readonly view: View;
 
   constructor(root: HTMLElement) {
     this.animate = window.localStorage.getItem(ANIMATE_KEY) !== 'off';
+    const savedMode = window.localStorage.getItem(MODE_KEY);
+    if (savedMode === 'local' || savedMode === 'easy' || savedMode === 'normal' || savedMode === 'hard') {
+      this.mode = savedMode;
+    }
     this.view = new View(root, {
       onCell: (row, col) => this.handleCell({ row, col }),
       onHand: (owner, piece) => this.handleHand(owner, piece),
@@ -71,6 +87,7 @@ export class App {
       onResign: () => this.handleResign(),
       onToggleAnimate: () => this.toggleAnimate(),
       onRematch: () => this.rematch(),
+      onMode: (mode) => this.setMode(mode),
     });
     this.render();
   }
@@ -79,8 +96,15 @@ export class App {
   // 操作
   // -------------------------------------------------------------------------
 
+  /** いま人間が操作してよいか。 */
+  private get humanTurn(): boolean {
+    if (this.busy || this.thinking) return false;
+    if (this.state.result.kind !== 'playing') return false;
+    return this.mode === 'local' || this.state.turn !== AI_COLOR;
+  }
+
   private handleHand(owner: Color, piece: DroppablePieceType): void {
-    if (this.busy || this.state.result.kind !== 'playing') return;
+    if (!this.humanTurn) return;
     if (owner !== this.state.turn) return;
     if (this.state.hands[owner][piece] <= 0) return;
 
@@ -92,7 +116,7 @@ export class App {
   }
 
   private handleCell(pos: Pos): void {
-    if (this.busy || this.state.result.kind !== 'playing') return;
+    if (!this.humanTurn) return;
     const { selection } = this;
 
     // 打つ手のプレビュー中に同じマスをもう一度 → 確定
@@ -156,6 +180,16 @@ export class App {
     this.showResult();
   }
 
+  private setMode(mode: OpponentMode): void {
+    if (this.thinking || this.mode === mode) return;
+    this.mode = mode;
+    window.localStorage.setItem(MODE_KEY, mode);
+    this.ai.reset();
+    this.selection = { kind: 'none' };
+    this.render();
+    void this.maybeLetAiMove();
+  }
+
   private toggleAnimate(): void {
     this.animate = !this.animate;
     window.localStorage.setItem(ANIMATE_KEY, this.animate ? 'on' : 'off');
@@ -163,9 +197,13 @@ export class App {
   }
 
   private undo(): void {
-    if (this.busy) return;
-    const previous = this.history.pop();
+    if (this.busy || this.thinking) return;
+    let previous = this.history.pop();
     if (!previous) return;
+    // AI 対戦中は「自分の手」まで戻す
+    if (this.mode !== 'local' && previous.turn === AI_COLOR && this.history.length > 0) {
+      previous = this.history.pop() ?? previous;
+    }
     this.state = previous;
     this.selection = { kind: 'none' };
     this.lastMove = null;
@@ -175,6 +213,7 @@ export class App {
   }
 
   private rematch(): void {
+    this.ai.reset();
     this.state = initialGameState();
     this.history = [];
     this.selection = { kind: 'none' };
@@ -182,6 +221,41 @@ export class App {
     this.justFlipped = [];
     this.view.hideResult();
     this.render();
+    void this.maybeLetAiMove();
+  }
+
+  /** AI の手番なら考えさせて指させる。 */
+  private async maybeLetAiMove(): Promise<void> {
+    if (this.mode === 'local') return;
+    if (this.state.result.kind !== 'playing') return;
+    if (this.state.turn !== AI_COLOR) return;
+    if (this.thinking || this.busy) return;
+
+    this.thinking = true;
+    this.render();
+
+    const difficulty: Difficulty = this.mode;
+    const asked = this.state;
+    let move: Move | null = null;
+    try {
+      const started = Date.now();
+      const thought = await this.ai.think(asked, difficulty);
+      const rest = AI_MIN_THINK_MS - (Date.now() - started);
+      if (rest > 0) await sleep(rest);
+      move = thought.move;
+    } catch (error) {
+      console.error('AI の思考でエラー', error);
+    } finally {
+      this.thinking = false;
+    }
+
+    // 考えているあいだに待った・再対局などで局面が変わっていたら捨てる
+    if (this.state !== asked) {
+      this.render();
+      return;
+    }
+
+    await this.play(move ?? { kind: 'pass' });
   }
 
   // -------------------------------------------------------------------------
@@ -209,7 +283,12 @@ export class App {
     this.render();
 
     if (outcome.chainCount >= 3) this.view.showChainBanner(outcome.chainCount);
-    if (this.state.result.kind !== 'playing') this.showResult();
+    if (this.state.result.kind !== 'playing') {
+      this.showResult();
+      return;
+    }
+
+    void this.maybeLetAiMove();
   }
 
   /**
@@ -329,14 +408,17 @@ export class App {
       hint: this.hint(animating),
       counts: `${counts.sente} 対 ${counts.gote}`,
       confirmLabel: this.selection.kind === 'drop' && !animating ? '打つ' : null,
-      canUndo: this.history.length > 0 && !animating,
-      canPass: playing && mustPass(state) && !animating,
-      canResign: playing && !animating,
+      canUndo: this.history.length > 0 && !animating && !this.thinking,
+      canPass: this.humanTurn && mustPass(state),
+      canResign: playing && !animating && !this.thinking,
       animateLabel: this.animate ? '演出 ON' : '演出 OFF',
+      mode: this.mode,
+      thinking: this.thinking,
     };
   }
 
   private hint(animating: boolean): string {
+    if (this.thinking) return 'AI が考えています…';
     if (animating) return '反転中…';
     const { state } = this;
     if (state.result.kind !== 'playing') return resultReason(state.result);

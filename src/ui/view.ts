@@ -43,7 +43,20 @@ export interface ViewModel {
   readonly canPass: boolean;
   readonly canResign: boolean;
   readonly animateLabel: string;
+  readonly mode: OpponentMode;
+  /** AI が考えているあいだ true */
+  readonly thinking: boolean;
 }
+
+/** 対戦相手。local = 同じ端末で2人。 */
+export type OpponentMode = 'local' | 'easy' | 'normal' | 'hard';
+
+export const OPPONENT_LABELS: Readonly<Record<OpponentMode, string>> = {
+  local: '2人',
+  easy: 'AI 弱',
+  normal: 'AI 中',
+  hard: 'AI 強',
+};
 
 export interface ViewHandlers {
   onCell(row: number, col: number): void;
@@ -54,6 +67,7 @@ export interface ViewHandlers {
   onResign(): void;
   onToggleAnimate(): void;
   onRematch(): void;
+  onMode(mode: OpponentMode): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -69,6 +83,7 @@ export class View {
   private readonly passButton: HTMLButtonElement;
   private readonly resignButton: HTMLButtonElement;
   private readonly animateButton: HTMLButtonElement;
+  private readonly modeBar: HTMLDivElement;
   private readonly chainBanner: HTMLDivElement;
   private readonly overlay: HTMLDivElement;
 
@@ -95,6 +110,7 @@ export class View {
         <span class="status__counts" data-role="counts"></span>
         <button class="confirm" data-role="confirm" hidden></button>
       </p>
+      <div class="modes" data-role="modes"></div>
       <div class="actions">
         <button data-role="undo">待った</button>
         <button data-role="pass">パス</button>
@@ -136,6 +152,15 @@ export class View {
     this.passButton = this.query<HTMLButtonElement>(root, 'pass');
     this.resignButton = this.query<HTMLButtonElement>(root, 'resign');
     this.animateButton = this.query<HTMLButtonElement>(root, 'animate');
+    this.modeBar = this.query<HTMLDivElement>(root, 'modes');
+    for (const mode of ['local', 'easy', 'normal', 'hard'] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.mode = mode;
+      button.textContent = OPPONENT_LABELS[mode];
+      button.addEventListener('click', () => this.handlers.onMode(mode));
+      this.modeBar.append(button);
+    }
     this.chainBanner = this.query<HTMLDivElement>(root, 'chain');
     this.overlay = this.query<HTMLDivElement>(root, 'overlay');
 
@@ -168,6 +193,7 @@ export class View {
 
     this.statusTurn.textContent = model.turnLabel;
     this.statusTurn.dataset.turn = model.turnColor;
+    this.statusTurn.dataset.thinking = String(model.thinking);
     this.statusHint.textContent = model.hint;
     this.statusCounts.textContent = model.counts;
 
@@ -178,6 +204,11 @@ export class View {
     this.passButton.disabled = !model.canPass;
     this.resignButton.disabled = !model.canResign;
     this.animateButton.textContent = model.animateLabel;
+
+    for (const button of this.modeBar.querySelectorAll<HTMLButtonElement>('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.mode === model.mode));
+      button.disabled = model.thinking;
+    }
   }
 
   private renderCell(cell: HTMLButtonElement, view: CellView): void {

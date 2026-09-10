@@ -118,6 +118,25 @@ button.ghost {
   color: var(--ink-soft);
 }
 
+.modes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.modes button {
+  padding: 6px 4px;
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.modes button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+
 .actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -382,6 +401,23 @@ button.ghost {
 
 .status__turn[data-turn='gote'] {
   color: var(--accent);
+}
+
+.status__turn[data-thinking='true']::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--flip);
+  animation: thinking 900ms ease-in-out infinite;
+}
+
+@keyframes thinking {
+  50% {
+    opacity: 0.2;
+  }
 }
 
 .status__hint {

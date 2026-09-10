@@ -86,6 +86,31 @@ check('結果が出る', await page.locator('[data-role="overlay"]').isVisible()
 check('勝者', await page.locator('[data-role="result-title"]').textContent(), '先手の勝ち');
 await shot('05-result');
 
+
+// ---------------------------------------------------------------------------
+// AI 対戦（別スレッドで思考しても画面が固まらないこと）
+// ---------------------------------------------------------------------------
+await page.goto(url, { waitUntil: 'networkidle' });
+await page.locator('.modes button', { hasText: 'AI 中' }).click();
+await page.waitForTimeout(150);
+
+// 人間（先手）が1手指すと、AI（後手）が自動で返す
+await chip('sente', '歩').click();
+await page.waitForTimeout(100);
+await cell(3, 2).click();
+await page.waitForTimeout(100);
+await page.locator('[data-role="confirm"]').click();
+
+// 思考中の表示が出て、やがて先手番に戻る
+await page.waitForFunction(
+  () => document.querySelector('.status__turn')?.textContent === '先手番',
+  undefined,
+  { timeout: 15000 },
+);
+check('AI が指し返して先手番に戻る', await page.locator('.status__turn').textContent(), '先手番');
+check('AI が指したので盤の駒が増えているか動いている', (await page.locator('.cell__piece').count()) >= 13, true);
+await shot('06-vs-ai');
+
 await browser.close();
 
 if (problems.length > 0) {
