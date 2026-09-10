@@ -11,10 +11,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "cli": "node --experimental-strip-types tools/cli.ts",
-    "balance": "node --experimental-strip-types tools/balance.ts"
+    "balance": "node --experimental-strip-types tools/balance.ts",
+    "uitest": "node tools/uitest.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.5.0",
+    "playwright": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
