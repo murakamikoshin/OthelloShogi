@@ -70,5 +70,16 @@
   "online.yourTurn": "Your move",
   "online.waiting": "Opponent's move",
   "online.ratingDelta": "Rating {rating} ({delta})",
-  "online.error": "Connection error: {message}"
+  "online.error": "Connection error: {message}",
+  "action.close": "Close",
+  "action.ranking": "Ranks",
+  "ranking.title": "World ranking",
+  "ranking.byRating": "Rating",
+  "ranking.byChain": "Best chain",
+  "ranking.loading": "Loading…",
+  "ranking.failed": "Could not load the ranking",
+  "ranking.empty": "Nobody is listed yet",
+  "ranking.yourRank": "You are #{rank} (rating {rating})",
+  "ranking.notRanked": "Rating {rating}. {remaining} more games to be listed",
+  "ranking.needOnline": "Play online to get a rank"
 }

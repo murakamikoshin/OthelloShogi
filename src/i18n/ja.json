@@ -70,5 +70,16 @@
   "online.yourTurn": "あなたの手番",
   "online.waiting": "相手の手番です",
   "online.ratingDelta": "レート {rating}（{delta}）",
-  "online.error": "通信エラー: {message}"
+  "online.error": "通信エラー: {message}",
+  "action.close": "閉じる",
+  "action.ranking": "順位",
+  "ranking.title": "世界ランキング",
+  "ranking.byRating": "レート",
+  "ranking.byChain": "最大連鎖",
+  "ranking.loading": "読み込んでいます…",
+  "ranking.failed": "ランキングを取得できませんでした",
+  "ranking.empty": "まだ誰も載っていません",
+  "ranking.yourRank": "あなたは {rank} 位（レート {rating}）",
+  "ranking.notRanked": "レート {rating}。あと {remaining} 戦でランキングに載ります",
+  "ranking.needOnline": "オンライン対戦をすると自分の順位が出ます"
 }

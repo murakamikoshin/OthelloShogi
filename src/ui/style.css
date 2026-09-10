@@ -775,3 +775,81 @@ button.ghost {
 .tut__buttons .confirm {
   flex: 1 1 auto;
 }
+
+/* ---------- ランキング ---------- */
+
+.rank__card {
+  max-width: 340px;
+  text-align: left;
+}
+
+.rank__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.rank__tab[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.rank__body {
+  min-height: 180px;
+  max-height: 46vh;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.rank__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rank__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.rank__row:nth-child(odd) {
+  background: var(--bg);
+}
+
+.rank__row[data-me='true'] {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.rank__no {
+  flex: 0 0 2em;
+  text-align: right;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank__name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank__value {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank__empty,
+.rank__me {
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: center;
+  margin: 12px 0;
+}

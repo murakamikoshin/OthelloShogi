@@ -84,6 +84,28 @@ export async function renameSelf(identity: Identity, name: string): Promise<Iden
   return updated;
 }
 
+export interface MyStats {
+  readonly id: string;
+  readonly name: string;
+  readonly rating: number;
+  readonly games: number;
+  readonly wins: number;
+  readonly losses: number;
+  readonly draws: number;
+  readonly best_chain: number;
+  /** ランキングに載る条件を満たしていなければ null */
+  readonly rank: number | null;
+}
+
+/** 自分の成績と順位。 */
+export async function fetchMe(identity: Identity): Promise<MyStats> {
+  const response = await fetch(`${apiBase()}/api/players/me`, {
+    headers: { Authorization: `Bearer ${identity.token}` },
+  });
+  if (!response.ok) throw new Error('成績を取得できませんでした');
+  return (await response.json()) as MyStats;
+}
+
 export async function fetchRanking(): Promise<unknown> {
   const response = await fetch(`${apiBase()}/api/ranking`);
   if (!response.ok) throw new Error('ランキングを取得できませんでした');

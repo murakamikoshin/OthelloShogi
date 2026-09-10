@@ -37,6 +37,7 @@ import type { ClockState, MatchServerMessage, PlayerInfo } from '../../worker/pr
 import type { Difficulty } from '../ai/search.ts';
 import { AiClient } from './ai-client.ts';
 import { OnlineSession, loadIdentity, type Identity } from './online.ts';
+import { showRanking } from './ranking.ts';
 import { initLang, languageCode, nextLang, peekNextLang, t } from '../i18n/index.ts';
 import { colorName, resultReason, resultTitle } from './labels.ts';
 import { Sound } from './sound.ts';
@@ -113,6 +114,7 @@ export class App {
       onMode: (mode) => this.setMode(mode),
       onHelp: () => showTutorial(true),
       onToggleLang: () => this.toggleLang(),
+      onRanking: () => void showRanking(this.identity),
     });
     this.render();
     showTutorial();

@@ -81,6 +81,7 @@ export interface ViewHandlers {
   onHelp(): void;
   onToggleMute(): void;
   onToggleLang(): void;
+  onRanking(): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -111,6 +112,7 @@ export class View {
         </h1>
         <span class="topbar__buttons">
           <button class="ghost" data-role="help" data-i18n="action.help"></button>
+          <button class="ghost" data-role="ranking" data-i18n="action.ranking"></button>
           <button class="ghost icon" data-role="lang"></button>
           <button class="ghost icon" data-role="mute" data-i18n-label="action.help"></button>
           <button class="ghost icon" data-role="animate"></button>
@@ -199,6 +201,9 @@ export class View {
     this.muteButton.addEventListener('click', () => this.handlers.onToggleMute());
     this.query<HTMLButtonElement>(root, 'lang').addEventListener('click', () =>
       this.handlers.onToggleLang(),
+    );
+    this.query<HTMLButtonElement>(root, 'ranking').addEventListener('click', () =>
+      this.handlers.onRanking(),
     );
     this.root = root;
     applyTranslations(root);
