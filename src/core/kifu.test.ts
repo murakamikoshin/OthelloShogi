@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, initialGameState, parseKifu } from './index.ts';
 import { countPieces } from './board.ts';
+import { INITIAL_HAND } from './rules.ts';
 import { pieceOn } from './test-helpers.ts';
 import type { GameState, Pos } from './types.ts';
 
@@ -38,8 +39,9 @@ describe('サンプル棋譜', () => {
     // 反転で手に入れた「と金」が r3c3 まで進んでいる
     expect(pieceOn(state.board, 3, 3)).toEqual({ type: '+P', owner: 'sente' });
     // 取った成駒ではない飛が後手の持ち駒に入っている（成りは解ける）
-    expect(state.hands.gote.R).toBe(2);
-    expect(state.hands.sente.B).toBe(2);
+    expect(state.hands.gote.R).toBe(INITIAL_HAND.R + 1);
+    // 先手は角を打っていないので、取った角のぶんだけ増える
+    expect(state.hands.sente.B).toBe(INITIAL_HAND.B + 1);
 
     expect(countPieces(state.board)).toEqual({ sente: 4, gote: 1 });
     expect(state.ply).toBe(7);

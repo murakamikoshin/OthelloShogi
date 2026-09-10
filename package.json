@@ -1,5 +1,5 @@
 {
-  "name": "othello-shogi",
+  "name": "negaeri-shogi",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,5 +18,6 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
-  }
+  },
+  "description": "寝返り将棋 — 挟まれた駒は敵に寝返り、出世する"
 }

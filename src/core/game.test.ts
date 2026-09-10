@@ -14,6 +14,7 @@ import {
   validateMove,
 } from './game.ts';
 import { countPieces, pieceAt } from './board.ts';
+import { INITIAL_HAND } from './rules.ts';
 import { at, board, hands, pieceOn, state } from './test-helpers.ts';
 
 describe('初期局面', () => {
@@ -24,8 +25,8 @@ describe('初期局面', () => {
     expect(pieceOn(s.board, 0, 3)).toEqual({ type: 'K', owner: 'gote' });
     expect(pieceOn(s.board, 1, 3)).toEqual({ type: 'P', owner: 'gote' });
     expect(countPieces(s.board)).toEqual({ sente: 2, gote: 2 });
-    expect(s.hands.sente).toEqual({ P: 3, R: 1, B: 1 });
-    expect(s.hands.gote).toEqual({ P: 3, R: 1, B: 1 });
+    expect(s.hands.sente).toEqual(INITIAL_HAND);
+    expect(s.hands.gote).toEqual(INITIAL_HAND);
     expect(s.turn).toBe('sente');
     expect(s.result.kind).toBe('playing');
   });
@@ -35,8 +36,8 @@ describe('初期局面', () => {
     const before = s.board.slice();
     const next = applyMove(s, { kind: 'drop', piece: 'P', to: at(3, 2) });
     expect(s.board).toEqual(before);
-    expect(s.hands.sente.P).toBe(3);
-    expect(next.hands.sente.P).toBe(2);
+    expect(s.hands.sente.P).toBe(INITIAL_HAND.P);
+    expect(next.hands.sente.P).toBe(INITIAL_HAND.P - 1);
     expect(next.turn).toBe('gote');
   });
 });

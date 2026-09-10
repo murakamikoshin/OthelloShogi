@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, previewFlips } from './game.ts';
 import { DEFAULT_FLIP_RANGES, flipRays, simulateDrop } from './flip.ts';
+import { FLIP_DIRECTION_MODE } from './rules.ts';
 import { at, board, hand, hands, pieceOn, posSet, state } from './test-helpers.ts';
 
 describe('打ったときの反転', () => {
@@ -67,6 +68,28 @@ describe('打ったときの反転', () => {
         '41',
         '43',
       ]);
+    });
+
+    it('既定は all8。歩を打っても斜めで挟めば裏返る', () => {
+      expect(FLIP_DIRECTION_MODE).toBe('all8');
+
+      const diagonal = board(
+        '.  .  .  k  .  .',
+        '.  .  .  .  .  .',
+        'R  .  .  .  .  .', // 斜めの終端になる先手の飛
+        '.  p  .  .  .  .', // 裏返る後手の歩
+        '.  .  .  .  .  .', // ここに先手が歩を打つ
+        '.  .  K  .  .  .',
+      );
+
+      // 既定（all8）なら斜めに挟んで裏返る
+      const result = simulateDrop(diagonal, at(4, 2), 'P', 'sente');
+      expect(posSet(result.flips)).toEqual(['31']);
+      expect(pieceOn(result.board, 3, 1)).toEqual({ type: '+P', owner: 'sente' });
+
+      // 斜めを見ないモードでは何も起きない
+      expect(simulateDrop(diagonal, at(4, 2), 'P', 'sente', { mode: 'wide' }).flips).toEqual([]);
+      expect(simulateDrop(diagonal, at(4, 2), 'P', 'sente', { mode: 'attack' }).flips).toEqual([]);
     });
 
     it('方向を上乗せしても、走る駒の距離は縮まない', () => {

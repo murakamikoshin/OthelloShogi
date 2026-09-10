@@ -6,6 +6,7 @@ import { formatMove, parseKifu, parseMove } from './notation.ts';
 import { applyMove, initialGameState } from './game.ts';
 import { pieceOn } from './test-helpers.ts';
 import { countPieces } from './board.ts';
+import { INITIAL_HAND } from './rules.ts';
 
 describe('1手の読み書き', () => {
   it('打つ手', () => {
@@ -59,7 +60,7 @@ describe('棋譜の読み込み', () => {
     expect(pieceOn(finalState.board, 3, 3)).toEqual({ type: 'B', owner: 'sente' });
     expect(pieceOn(finalState.board, 2, 3)).toEqual({ type: 'P', owner: 'gote' });
     expect(pieceOn(finalState.board, 3, 2)).toEqual({ type: 'P', owner: 'sente' });
-    expect(finalState.hands.sente.B).toBe(0);
+    expect(finalState.hands.sente.B).toBe(INITIAL_HAND.B - 1);
     expect(countPieces(finalState.board)).toEqual({ sente: 3, gote: 2 });
     expect(finalState.ply).toBe(3);
     expect(finalState.turn).toBe('gote');

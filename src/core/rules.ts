@@ -28,7 +28,7 @@ export const INITIAL_KING_COL_SENTE = Math.floor(BOARD_SIZE / 2) - 1;
 export const INITIAL_KING_COL_GOTE = Math.floor(BOARD_SIZE / 2);
 
 /** 初期持ち駒（両者共通）。盤の埋まり具合＝連鎖の起きやすさを決める一番効く数値。 */
-export const INITIAL_HAND: Hand = { P: 3, R: 1, B: 1 };
+export const INITIAL_HAND: Hand = { P: 4, R: 2, B: 2 };
 
 // ---------------------------------------------------------------------------
 // 連鎖反転
@@ -50,7 +50,7 @@ export const MAX_CHAIN = 5;
  * 追加された方向は「1マスだけ利く方向」と同じ距離設定（STEP_FLIP_RANGE）で扱う。
  */
 export type FlipDirectionMode = 'attack' | 'wide' | 'all8';
-export const FLIP_DIRECTION_MODE: FlipDirectionMode = 'wide';
+export const FLIP_DIRECTION_MODE: FlipDirectionMode = 'all8';
 
 /**
  * 「走る」方向（飛・角・竜・馬の本来の走り）の挟み判定の距離上限。
