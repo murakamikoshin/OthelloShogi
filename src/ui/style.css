@@ -243,6 +243,12 @@ button.ghost {
   text-align: center;
 }
 
+.banner[data-danger='true'] {
+  background: var(--danger);
+  color: #fff;
+  font-weight: 700;
+}
+
 .modes {
   grid-template-columns: repeat(5, 1fr);
 }

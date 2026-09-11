@@ -697,8 +697,17 @@ export class App {
       names: this.onlinePlayers
         ? { sente: this.onlinePlayers.sente.name, gote: this.onlinePlayers.gote.name }
         : null,
-      banner: this.banner,
+      // 王手は「いま何をすべきか」と同時に見えないと意味がないので、
+      // 操作のヒントとは別の行に出す
+      banner: this.banner ?? this.checkWarning(animating),
     };
+  }
+
+  /** 手番の側の玉が狙われていれば警告を返す。 */
+  private checkWarning(animating: boolean): string | null {
+    if (animating || this.thinking) return null;
+    if (this.state.result.kind !== 'playing') return null;
+    return isInCheck(this.state.board, this.state.turn) ? t('hint.inCheck') : null;
   }
 
   private clockLabels(): Readonly<Record<Color, string>> | null {
@@ -717,8 +726,6 @@ export class App {
     const { state } = this;
     if (state.result.kind !== 'playing') return resultReason(state.result);
     if (mustPass(state)) return t('hint.mustPass');
-    // 玉が取られたら即負け。逃げるか受けるかしないといけないことを知らせる
-    if (isInCheck(state.board, state.turn)) return t('hint.inCheck');
     if (this.mode === 'online' && this.onlinePlayers) {
       if (state.turn !== this.onlineColor) return t('online.waiting');
       if (this.selection.kind === 'none') return t('online.yourTurn');

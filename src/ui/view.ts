@@ -279,6 +279,7 @@ export class View {
     if (banner) {
       banner.hidden = model.banner === null;
       banner.textContent = model.banner ?? '';
+      banner.dataset.danger = String(model.banner === t('hint.inCheck'));
     }
 
     this.confirmButton.hidden = model.confirmLabel === null;

@@ -125,12 +125,25 @@ await page.locator('[data-role="confirm"]').click();
 await page.waitForTimeout(400);
 
 check('王手の玉が1つ光る', await page.locator('.cell[data-check="true"]').count(), 1);
-check('王手だと知らせる', await page.locator('.status__hint').textContent(), '王手！ 玉を取られたら負けです');
+check(
+  '王手だと知らせる',
+  await page.locator('[data-role="banner"]').textContent(),
+  '王手！ 玉を取られたら負けです',
+);
 await shot('09-check');
 
 // ---------------------------------------------------------------------------
 // 棋譜のコピー
 // ---------------------------------------------------------------------------
+// 王手のときでも、駒を選べば「何枚裏返るか」が見える（案内欄と操作ヒントは別の行）
+// いま王手をかけられているのは後手なので、後手の持ち駒を選ぶ
+await chip('gote', '歩').click();
+await page.waitForTimeout(120);
+check('王手中でも打てるマスが出る', (await page.locator('.cell[data-target="true"]').count()) > 0, true);
+check('王手の警告は消えない', await page.locator('[data-role="banner"]').textContent(), '王手！ 玉を取られたら負けです');
+await page.locator('.cell').nth(0).click();
+await page.waitForTimeout(120);
+
 await page.locator('button[data-role="share"]').click();
 await page.waitForTimeout(400);
 check('コピーしたと知らせる', await page.locator('[data-role="banner"]').textContent(), '棋譜をコピーしました');
