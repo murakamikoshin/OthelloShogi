@@ -19,11 +19,13 @@ const executablePath = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium';
 
 const browser = await chromium.launch({ executablePath });
 // 既定は日本語環境として確認する（英語は最後にまとめて確認する）
-const page = await browser.newPage({
+const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 2,
   locale: 'ja-JP',
+  permissions: ['clipboard-read', 'clipboard-write'],
 });
+const page = await context.newPage();
 
 const problems = [];
 page.on('pageerror', (error) => problems.push(`JS エラー: ${error}`));
@@ -52,7 +54,7 @@ const check = (label, actual, expected) => {
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(200);
 check('初回にルール説明が出る', await page.locator('.tut').isVisible(), true);
-check('ルール説明は3枚', await page.locator('.tut__dot').count(), 3);
+check('ルール説明は4枚', await page.locator('.tut__dot').count(), 4);
 await shot('00-tutorial');
 await dismissTutorial();
 
@@ -93,6 +95,47 @@ check('動かしたあとの手番', await page.locator('.status__turn').textCon
 await page.locator('[data-role="undo"]').click();
 await page.waitForTimeout(150);
 check('待った後の手番', await page.locator('.status__turn').textContent(), '後手番');
+
+// ---------------------------------------------------------------------------
+// 王手の表示（玉を取られたら即負けなので、危険が見えないと成立しない）
+// ---------------------------------------------------------------------------
+await page.goto(url, { waitUntil: 'networkidle' });
+await dismissTutorial();
+check('開始局面では王手が出ない', await page.locator('.cell[data-check="true"]').count(), 0);
+check(
+  '勢力図は互角から始まる',
+  Number.parseFloat(await page.locator('.balance__fill').evaluate((el) => el.style.width)),
+  50,
+);
+
+// 42-32 → 13-23 → 飛を r1c3 に打つ と後手に王手がかかる
+await cell(4, 2).click();
+await page.waitForTimeout(80);
+await cell(3, 2).click();
+await page.waitForTimeout(250);
+await cell(1, 3).click();
+await page.waitForTimeout(80);
+await cell(2, 3).click();
+await page.waitForTimeout(250);
+await chip('sente', '飛').click();
+await page.waitForTimeout(80);
+await cell(1, 3).click();
+await page.waitForTimeout(80);
+await page.locator('[data-role="confirm"]').click();
+await page.waitForTimeout(400);
+
+check('王手の玉が1つ光る', await page.locator('.cell[data-check="true"]').count(), 1);
+check('王手だと知らせる', await page.locator('.status__hint').textContent(), '王手！ 玉を取られたら負けです');
+await shot('09-check');
+
+// ---------------------------------------------------------------------------
+// 棋譜のコピー
+// ---------------------------------------------------------------------------
+await page.locator('button[data-role="share"]').click();
+await page.waitForTimeout(400);
+check('コピーしたと知らせる', await page.locator('[data-role="banner"]').textContent(), '棋譜をコピーしました');
+const kifu = await page.evaluate(() => navigator.clipboard.readText());
+check('棋譜に指した手が入っている', kifu.includes('42-32 13-23 R*13'), true);
 
 // 投了 → 結果表示
 page.on('dialog', (dialog) => dialog.accept());

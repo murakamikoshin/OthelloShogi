@@ -66,7 +66,21 @@ const SLIDE_CHAIN: Slide = {
   drop: { piece: 'P', at: { row: 4, col: 2 } },
 };
 
-const SLIDES: readonly Slide[] = [SLIDE_FLIP, SLIDE_PROMOTE, SLIDE_CHAIN];
+/** 4. 盤の端も挟みの終端になる */
+const SLIDE_WALL: Slide = {
+  key: 'tutorial.wall',
+  before: parseBoardDiagram([
+    'p  .  .  .  .  .',
+    'p  .  .  .  .  .',
+    'p  .  .  .  .  .',
+    '.  .  .  .  .  .',
+    '.  .  .  .  .  .',
+    '.  .  .  .  K  k',
+  ]),
+  drop: { piece: 'P', at: { row: 3, col: 0 } },
+};
+
+const SLIDES: readonly Slide[] = [SLIDE_FLIP, SLIDE_PROMOTE, SLIDE_CHAIN, SLIDE_WALL];
 
 /** 玉に守られた駒は寝返らないので、説明の図では玉を隅に置いてある。 */
 function renderBoard(board: Board, marks: ReadonlyMap<number, string>): string {

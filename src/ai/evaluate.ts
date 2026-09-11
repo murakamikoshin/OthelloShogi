@@ -66,7 +66,11 @@ interface Coverage {
   readonly attacked: ReadonlySet<number>;
 }
 
-/** その色の全ての駒の利きを1回で集計する。 */
+/**
+ * その色の全ての駒の利きを1回で集計する。
+ * 「どこを狙っているか」と「何手指せるか」を同時に数えたいので、
+ * core の isAttacked（1マスずつ調べる）ではなくここでまとめて求めている。
+ */
 function coverageOf(board: Board, color: Color): Coverage {
   const attacked = new Set<number>();
   let mobility = 0;

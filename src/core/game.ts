@@ -40,6 +40,7 @@ import {
   INITIAL_SETUP,
   BOARD_SIZE,
   PASS_LIMIT,
+  PLY_LIMIT,
   REPETITION_LIMIT,
 } from './rules.ts';
 
@@ -341,6 +342,9 @@ function registerPosition(state: GameState): GameState {
 
   if (count >= REPETITION_LIMIT) {
     return finish(withRepetition, resultByPieceCount(state.board, 'repetition_count'));
+  }
+  if (PLY_LIMIT > 0 && state.ply >= PLY_LIMIT) {
+    return finish(withRepetition, resultByPieceCount(state.board, 'ply_limit'));
   }
   return withRepetition;
 }

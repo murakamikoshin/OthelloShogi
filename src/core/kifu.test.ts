@@ -41,21 +41,20 @@ describe('サンプル棋譜（AI 同士の実戦1局）', () => {
     expect(state.result).toEqual({ kind: 'win', winner: 'sente', reason: 'king_captured' });
     // 取り合いと寝返りの両方が起きる棋譜であること
     expect(captures).toBeGreaterThanOrEqual(5);
-    expect(flips).toBeGreaterThanOrEqual(8);
-    expect(bestChain).toBeGreaterThanOrEqual(2);
+    expect(flips).toBeGreaterThanOrEqual(30);
+    expect(bestChain).toBeGreaterThanOrEqual(3);
   });
 });
 
 describe('連鎖デモ棋譜', () => {
-  it('最後の1手で2連鎖が起き、最大連鎖数が記録される', () => {
+  it('最後の1手で3連鎖が起き、最大連鎖数が記録される', () => {
     const { moves, state, bestChain } = replay(CHAIN);
 
-    expect(moves).toHaveLength(8);
-    expect(bestChain).toBe(2);
-    expect(state.maxChainCount.gote).toBe(2);
-    // 2連鎖で裏返った駒は後手のものになり、成っている
-    expect(pieceOn(state.board, 1, 1)).toEqual({ type: '+P', owner: 'gote' });
-    expect(pieceOn(state.board, 2, 1)).toEqual({ type: '+B', owner: 'gote' });
+    expect(moves).toHaveLength(12);
+    expect(bestChain).toBe(3);
+    expect(state.maxChainCount.gote).toBe(3);
+    // 寝返った駒は相手のものになり、成っている
+    expect(pieceOn(state.board, 2, 2)).toEqual({ type: '+P', owner: 'gote' });
     expect(state.result.kind).toBe('playing');
   });
 });

@@ -19,7 +19,10 @@
     "worker:dev": "wrangler dev --local",
     "worker:deploy": "wrangler deploy",
     "db:init": "wrangler d1 execute negaeri --file=worker/schema.sql --local",
-    "onlinetest": "node tools/onlinetest.mjs"
+    "onlinetest": "node tools/onlinetest.mjs",
+    "analyze": "node --experimental-strip-types tools/analyze.ts",
+    "report": "node --experimental-strip-types tools/report.mjs",
+    "sweep": "node tools/sweep.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260910.1",

@@ -81,5 +81,13 @@
   "ranking.empty": "まだ誰も載っていません",
   "ranking.yourRank": "あなたは {rank} 位（レート {rating}）",
   "ranking.notRanked": "レート {rating}。あと {remaining} 戦でランキングに載ります",
-  "ranking.needOnline": "オンライン対戦をすると自分の順位が出ます"
+  "ranking.needOnline": "オンライン対戦をすると自分の順位が出ます",
+  "reason.ply_limit": "規定手数 → 盤上の駒数",
+  "reason.draw_ply_limit": "規定手数 → 駒数が同数",
+  "hint.inCheck": "王手！ 玉を取られたら負けです",
+  "chain.bannerFlips": "{count} 枚 寝返り!",
+  "share.copied": "棋譜をコピーしました",
+  "share.failed": "コピーできませんでした",
+  "tutorial.wall.title": "壁際に追い込むと寝返る",
+  "tutorial.wall.body": "盤の端も挟みの終端になります。逃げ場を失った駒はまとめて寝返る。端に追い込むのが攻めの基本で、逆に自分の駒を端に並べるのは危険です。"
 }

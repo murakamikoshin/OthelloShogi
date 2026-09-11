@@ -81,5 +81,13 @@
   "ranking.empty": "Nobody is listed yet",
   "ranking.yourRank": "You are #{rank} (rating {rating})",
   "ranking.notRanked": "Rating {rating}. {remaining} more games to be listed",
-  "ranking.needOnline": "Play online to get a rank"
+  "ranking.needOnline": "Play online to get a rank",
+  "reason.ply_limit": "Move limit → piece count",
+  "reason.draw_ply_limit": "Move limit → equal pieces",
+  "hint.inCheck": "Check! Lose the king and you lose",
+  "chain.bannerFlips": "{count} DEFECT!",
+  "share.copied": "Kifu copied",
+  "share.failed": "Could not copy",
+  "tutorial.wall.title": "Pinned against the wall",
+  "tutorial.wall.body": "The board edge also counts as your anchor. Pieces with nowhere left to run all change sides at once. Driving the enemy to the edge is the main attack — and lining your own pieces along it is dangerous."
 }

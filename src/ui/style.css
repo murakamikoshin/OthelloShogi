@@ -454,6 +454,29 @@ button.ghost {
   --spin: 180deg;
 }
 
+/* 王手がかかっている玉。取られたら即負けなので目立たせる */
+.cell[data-check='true'] {
+  background: #fecaca;
+}
+
+.cell[data-check='true'] .cell__piece {
+  outline: 3px solid var(--danger);
+  outline-offset: -1px;
+  animation: check-pulse 1100ms ease-in-out infinite;
+}
+
+@keyframes check-pulse {
+  50% {
+    outline-color: transparent;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .cell[data-check='true'] {
+    background: #7f1d1d;
+  }
+}
+
 /* 直前の着手 */
 .cell[data-last='true'] {
   box-shadow: inset 0 0 0 3px rgba(37, 99, 235, 0.35);
@@ -469,6 +492,24 @@ button.ghost {
 }
 
 /* ---------- ステータス ---------- */
+
+/* 盤上の駒数の勢力図。オセロ側の陣取りを一目で分かるようにする */
+.balance {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  /* 右側が後手 */
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.balance__fill {
+  display: block;
+  height: 100%;
+  /* 左側が先手 */
+  background: var(--flip);
+  transition: width 220ms ease;
+}
 
 .status {
   margin: 0;

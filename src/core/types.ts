@@ -73,6 +73,8 @@ export type WinReason =
   | 'pass_count'
   /** 同一局面4回 → 盤上の駒数が多い方の勝ち */
   | 'repetition_count'
+  /** 規定手数に達した → 盤上の駒数が多い方の勝ち */
+  | 'ply_limit'
   /** 投了 */
   | 'resign'
   /** 時間切れ */
@@ -81,7 +83,7 @@ export type WinReason =
   | 'illegal_move';
 
 /** 引き分けの理由（駒数が同数だったとき）。 */
-export type DrawReason = 'pass_count' | 'repetition_count';
+export type DrawReason = 'pass_count' | 'repetition_count' | 'ply_limit';
 
 /** 対局の状態。 */
 export type GameResult =

@@ -33,8 +33,10 @@ import {
   FLIP_DIRECTION_MODE,
   KING_GUARDS_NEIGHBORS,
   MAX_CHAIN,
+  PROMOTE_DROP_AT,
   SLIDE_FLIP_RANGE,
   STEP_FLIP_RANGE,
+  WALL_ANCHORS,
 } from './rules.ts';
 
 const ORTHOGONAL: readonly Dir[] = [
@@ -124,6 +126,7 @@ function scanRay(
   ray: FlipRay,
   color: Color,
   kingGuards: boolean,
+  wallAnchors: boolean,
 ): number[] {
   const [dr, dc] = ray.dir;
   const line: number[] = [];
@@ -131,7 +134,12 @@ function scanRay(
   let col = origin.col + dc;
   let distance = 1;
 
-  while (isInside(row, col) && distance <= ray.range) {
+  while (distance <= ray.range) {
+    if (!isInside(row, col)) {
+      // 盤の外に出た。壁をアンカーとして認めるなら、ここが挟みの終端になる
+      return wallAnchors ? line : [];
+    }
+
     const index = row * BOARD_SIZE + col;
     const square = board[index] ?? null;
 
@@ -153,7 +161,7 @@ function scanRay(
     distance += 1;
   }
 
-  // 盤の端まで、または距離上限まで行っても自分の駒が無かった
+  // 距離の上限まで行っても終端が無かった
   return [];
 }
 
@@ -178,6 +186,7 @@ export function collectFlipStep(
   ranges: FlipRanges = DEFAULT_FLIP_RANGES,
   mode: FlipDirectionMode = FLIP_DIRECTION_MODE,
   kingGuards: boolean = KING_GUARDS_NEIGHBORS,
+  wallAnchors: boolean = WALL_ANCHORS,
 ): number[] {
   const found = new Set<number>();
 
@@ -187,7 +196,7 @@ export function collectFlipStep(
     if (!piece || piece.type === 'K' || piece.owner !== color) continue;
 
     for (const ray of flipRays(piece.type, piece.owner, ranges, mode)) {
-      for (const index of scanRay(board, origin, ray, color, kingGuards)) {
+      for (const index of scanRay(board, origin, ray, color, kingGuards, wallAnchors)) {
         // 同一の駒は1手番中に2回以上反転しない
         if (alreadyFlipped.has(index)) continue;
         found.add(index);
@@ -269,6 +278,9 @@ export interface ChainOptions {
   readonly ranges?: FlipRanges;
   readonly mode?: FlipDirectionMode;
   readonly kingGuards?: boolean;
+  readonly wallAnchors?: boolean;
+  /** 打った駒自身が成るのに必要な反転枚数。0 なら成らない */
+  readonly promoteDropAt?: number;
 }
 
 /**
@@ -288,6 +300,7 @@ export function resolveChain(
   const ranges = options.ranges ?? DEFAULT_FLIP_RANGES;
   const mode = options.mode ?? FLIP_DIRECTION_MODE;
   const kingGuards = options.kingGuards ?? KING_GUARDS_NEIGHBORS;
+  const wallAnchors = options.wallAnchors ?? WALL_ANCHORS;
 
   const flippedThisTurn = new Set<number>();
   const steps: Pos[][] = [];
@@ -304,6 +317,7 @@ export function resolveChain(
       ranges,
       mode,
       kingGuards,
+      wallAnchors,
     );
     if (newlyFlipped.length === 0) break;
 
@@ -349,10 +363,20 @@ export function simulateDrop(
   if (board[index]) return { board, ...NO_CHAIN };
 
   const withDrop = board.slice();
-  withDrop[index] = { type: piece, owner: color }; // 打つときは常に不成
+  withDrop[index] = { type: piece, owner: color }; // 打った時点では不成
 
   // 隣に裏返せる相手の駒が1枚も無ければ、挟み判定をするまでもなく反転は起きない
   if (!mayFlipAt(board, at, color)) return { board: withDrop, ...NO_CHAIN };
 
-  return resolveChain(withDrop, at, color, options);
+  const chain = resolveChain(withDrop, at, color, options);
+
+  // 大量に寝返らせた手柄で、打った駒自身も出世する
+  const promoteAt = options.promoteDropAt ?? PROMOTE_DROP_AT;
+  if (promoteAt > 0 && chain.flips.length >= promoteAt) {
+    const promoted = chain.board.slice();
+    promoted[index] = { type: promote(piece), owner: color };
+    return { ...chain, board: promoted };
+  }
+
+  return chain;
 }

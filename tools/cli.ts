@@ -73,6 +73,7 @@ function renderResult(result: GameResult): string {
     king_captured: '玉を取った',
     pass_count: '両者連続パス → 駒数判定',
     repetition_count: '同一局面4回 → 駒数判定',
+    ply_limit: '規定手数 → 駒数判定',
     resign: '投了',
     timeout: '時間切れ',
     illegal_move: '反則',

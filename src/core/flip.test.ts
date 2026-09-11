@@ -4,7 +4,14 @@
 import { describe, expect, it } from 'vitest';
 import { applyMoveWithDetail, previewFlips } from './game.ts';
 import { DEFAULT_FLIP_RANGES, flipRays, simulateDrop } from './flip.ts';
-import { FLIP_DIRECTION_MODE } from './rules.ts';
+import {
+  FLIP_DIRECTION_MODE,
+  KING_GUARDS_NEIGHBORS,
+  MAX_CHAIN,
+  PLY_LIMIT,
+  PROMOTE_DROP_AT,
+  WALL_ANCHORS,
+} from './rules.ts';
 import { at, board, hand, hands, pieceOn, posSet, state } from './test-helpers.ts';
 
 describe('打ったときの反転', () => {
@@ -47,6 +54,16 @@ describe('打ったときの反転', () => {
       '.  .  R  .  .  .',
     );
 
+    it('既定の設定（変えるときは意図して変えること）', () => {
+      // ここが変わるとゲーム性が変わる。調整の履歴が分かるように1箇所にまとめてある
+      expect(FLIP_DIRECTION_MODE).toBe('all8');
+      expect(KING_GUARDS_NEIGHBORS).toBe(true);
+      expect(WALL_ANCHORS).toBe(true);
+      expect(PROMOTE_DROP_AT).toBe(0);
+      expect(MAX_CHAIN).toBe(5);
+      expect(PLY_LIMIT).toBe(0);
+    });
+
     it("'attack' は打った駒の利きの方向だけを見る（歩は前1方向）", () => {
       expect(flipRays('P', 'sente', DEFAULT_FLIP_RANGES, 'attack').map((ray) => ray.dir)).toEqual([
         [-1, 0],
@@ -71,8 +88,6 @@ describe('打ったときの反転', () => {
     });
 
     it('既定は all8。歩を打っても斜めで挟めば裏返る', () => {
-      expect(FLIP_DIRECTION_MODE).toBe('all8');
-
       const diagonal = board(
         '.  .  .  k  .  .',
         '.  .  .  .  .  .',
@@ -82,8 +97,8 @@ describe('打ったときの反転', () => {
         '.  .  K  .  .  .',
       );
 
-      // 既定（all8）なら斜めに挟んで裏返る
-      const result = simulateDrop(diagonal, at(4, 2), 'P', 'sente');
+      // all8 なら斜めに挟んで裏返る
+      const result = simulateDrop(diagonal, at(4, 2), 'P', 'sente', { mode: 'all8' });
       expect(posSet(result.flips)).toEqual(['31']);
       expect(pieceOn(result.board, 3, 1)).toEqual({ type: '+P', owner: 'sente' });
 
@@ -369,6 +384,83 @@ describe('打ったときの反転', () => {
     const preview = previewFlips(s, 'R', at(5, 0));
     const { flips } = applyMoveWithDetail(s, { kind: 'drop', piece: 'R', to: at(5, 0) });
     expect(posSet(preview)).toEqual(posSet(flips));
+  });
+});
+
+describe('盤の端をアンカーにする（WALL_ANCHORS）', () => {
+  //  r0c0・r1c0・r2c0 と後手の駒が続き、その先は盤の外
+  const wall = board(
+    'p  .  .  .  .  .',
+    'p  .  .  .  .  .',
+    'p  .  .  .  .  .',
+    '.  .  .  .  .  .', // ここに先手が歩を打つ
+    '.  .  .  .  .  .',
+    '.  .  K  .  k  .',
+  );
+
+  it('壁をアンカーにしないなら、その先が盤の外では挟めない', () => {
+    expect(simulateDrop(wall, at(3, 0), 'P', 'sente', { wallAnchors: false }).flips).toEqual([]);
+  });
+
+  it('壁をアンカーにすると、端まで続いた駒がまとめて寝返る', () => {
+    const result = simulateDrop(wall, at(3, 0), 'P', 'sente', { wallAnchors: true });
+    expect(posSet(result.flips)).toEqual(['00', '10', '20']);
+  });
+
+  it('壁をアンカーにしても、間に空マスがあれば挟めない', () => {
+    const gap = board(
+      'p  .  .  .  .  .',
+      '.  .  .  .  .  .', // 空マス
+      'p  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  K  .  k  .',
+    );
+    expect(simulateDrop(gap, at(3, 0), 'P', 'sente', { wallAnchors: true }).flips).toEqual([]);
+  });
+
+  it('壁をアンカーにしても、相手の玉は経路を遮断する', () => {
+    const withKing = board(
+      'k  .  .  .  .  .', // 後手の玉が端にいる
+      'p  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  .  .  .  .',
+      '.  .  K  .  .  .',
+    );
+    // r1c0 の歩は玉の隣なので寝返らない。玉ガードを切っても玉自身が遮る
+    expect(simulateDrop(withKing, at(2, 0), 'P', 'sente', { wallAnchors: true }).flips).toEqual([]);
+    expect(
+      simulateDrop(withKing, at(2, 0), 'P', 'sente', { wallAnchors: true, kingGuards: false })
+        .flips,
+    ).toEqual([]);
+  });
+});
+
+describe('打った駒の出世（PROMOTE_DROP_AT）', () => {
+  const b = board(
+    '.  .  .  .  .  .',
+    '.  .  R  .  .  .',
+    '.  .  p  .  .  .',
+    '.  .  p  .  .  .',
+    '.  .  .  .  .  .', // ここに先手が歩を打つ
+    '.  .  .  .  k  K',
+  );
+
+  it('0 なら打った駒は成らない（打つときは常に不成）', () => {
+    const result = simulateDrop(b, at(4, 2), 'P', 'sente', { promoteDropAt: 0 });
+    expect(result.flips).toHaveLength(2);
+    expect(pieceOn(result.board, 4, 2)).toEqual({ type: 'P', owner: 'sente' });
+  });
+
+  it('規定枚数を寝返らせると打った駒も成る', () => {
+    const result = simulateDrop(b, at(4, 2), 'P', 'sente', { promoteDropAt: 2 });
+    expect(pieceOn(result.board, 4, 2)).toEqual({ type: '+P', owner: 'sente' });
+  });
+
+  it('枚数が足りなければ成らない', () => {
+    const result = simulateDrop(b, at(4, 2), 'P', 'sente', { promoteDropAt: 3 });
+    expect(pieceOn(result.board, 4, 2)).toEqual({ type: 'P', owner: 'sente' });
   });
 });
 

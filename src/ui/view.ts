@@ -23,6 +23,8 @@ export interface CellView {
   readonly last: boolean;
   /** 自分の玉に隣接していて寝返らない駒か */
   readonly guarded: boolean;
+  /** 狙われている玉か（王手がかかっている） */
+  readonly inCheck: boolean;
 }
 
 export interface HandChipView {
@@ -39,6 +41,8 @@ export interface ViewModel {
   readonly turnColor: 'sente' | 'gote';
   readonly hint: string;
   readonly counts: string;
+  /** 盤上の駒数に占める先手の割合（0〜1）。勢力図のバーに使う */
+  readonly share: number;
   readonly confirmLabel: string | null;
   readonly canUndo: boolean;
   readonly canPass: boolean;
@@ -82,6 +86,7 @@ export interface ViewHandlers {
   onToggleMute(): void;
   onToggleLang(): void;
   onRanking(): void;
+  onShare(): void;
 }
 
 const HAND_ORDER: readonly ('P' | 'R' | 'B')[] = ['P', 'R', 'B'];
@@ -113,6 +118,7 @@ export class View {
         <span class="topbar__buttons">
           <button class="ghost" data-role="help" data-i18n="action.help"></button>
           <button class="ghost" data-role="ranking" data-i18n="action.ranking"></button>
+          <button class="ghost icon" data-role="share" title="棋譜をコピー">⧉</button>
           <button class="ghost icon" data-role="lang"></button>
           <button class="ghost icon" data-role="mute" data-i18n-label="action.help"></button>
           <button class="ghost icon" data-role="animate"></button>
@@ -126,6 +132,9 @@ export class View {
       <p class="banner" data-role="banner" hidden></p>
       <div class="board-wrap">
         <div class="board" data-role="board"></div>
+      </div>
+      <div class="balance" data-role="balance" aria-hidden="true">
+        <span class="balance__fill"></span>
       </div>
       <section class="hand hand--sente">
         <span class="hand__label" data-role="hand-label-sente"></span>
@@ -205,6 +214,9 @@ export class View {
     this.query<HTMLButtonElement>(root, 'ranking').addEventListener('click', () =>
       this.handlers.onRanking(),
     );
+    this.query<HTMLButtonElement>(root, 'share').addEventListener('click', () =>
+      this.handlers.onShare(),
+    );
     this.root = root;
     applyTranslations(root);
     this.query<HTMLButtonElement>(root, 'rematch').addEventListener('click', () =>
@@ -247,6 +259,10 @@ export class View {
     this.statusTurn.dataset.thinking = String(model.thinking);
     this.statusHint.textContent = model.hint;
     this.statusCounts.textContent = model.counts;
+
+    const balance = this.root.querySelector<HTMLElement>('[data-role="balance"]');
+    const fill = balance?.firstElementChild as HTMLElement | undefined;
+    if (fill) fill.style.width = `${(model.share * 100).toFixed(1)}%`;
 
     for (const owner of ['sente', 'gote'] as const) {
       const clock = this.root.querySelector<HTMLElement>(`[data-role="clock-${owner}"]`);
@@ -310,6 +326,7 @@ export class View {
     this.toggleAttr(cell, 'data-gain', view.gain ? `+${view.gain}` : null);
     this.toggleAttr(cell, 'data-just-flipped', view.justFlipped ? 'true' : null);
     this.toggleAttr(cell, 'data-last', view.last ? 'true' : null);
+    this.toggleAttr(cell, 'data-check', view.inCheck ? 'true' : null);
   }
 
   private toggleAttr(element: HTMLElement, name: string, value: string | null): void {
@@ -348,9 +365,13 @@ export class View {
     );
   }
 
-  /** 3連鎖以上のときだけ出す演出。 */
-  showChainBanner(chainCount: number): void {
-    this.chainBanner.innerHTML = `<span>${t('chain.banner', { count: chainCount })}</span>`;
+  /** 見せ場のときだけ出す演出。連鎖が続いたか、一度に大量に寝返らせたとき。 */
+  showChainBanner(chainCount: number, flips: number): void {
+    const text =
+      chainCount >= 3
+        ? t('chain.banner', { count: chainCount })
+        : t('chain.bannerFlips', { count: flips });
+    this.chainBanner.innerHTML = `<span>${text}</span>`;
     this.chainBanner.hidden = false;
     window.setTimeout(() => {
       this.chainBanner.hidden = true;

@@ -19,11 +19,14 @@ import type {
 import {
   BOARD_SIZE,
   applyMoveWithDetail,
+  formatMove,
   countPieces,
   destinationsFrom,
   dropDestinations,
   indexOf,
+  findKing,
   initialGameState,
+  isInCheck,
   isKingGuarded,
   legalMoves,
   mustPass,
@@ -92,6 +95,8 @@ export class App {
   private clockAt = 0;
   private clockTimer: number | null = null;
   private banner: string | null = null;
+  /** ここまでの棋譜。共有ボタンでコピーする */
+  private moveLog: string[] = [];
   private readonly view: View;
 
   constructor(root: HTMLElement) {
@@ -115,6 +120,7 @@ export class App {
       onHelp: () => showTutorial(true),
       onToggleLang: () => this.toggleLang(),
       onRanking: () => void showRanking(this.identity),
+      onShare: () => void this.shareKifu(),
     });
     this.render();
     showTutorial();
@@ -231,6 +237,7 @@ export class App {
 
     this.state = initialGameState();
     this.history = [];
+    this.moveLog = [];
     this.lastMove = null;
     this.justFlipped = [];
     this.render();
@@ -254,6 +261,7 @@ export class App {
     this.banner = t('online.connecting');
     this.state = initialGameState();
     this.history = [];
+    this.moveLog = [];
     this.lastMove = null;
     this.justFlipped = [];
     this.render();
@@ -303,6 +311,8 @@ export class App {
   }
 
   /** サーバから届いた局面を反映する。反転は同じ演出で見せる。 */
+  private lastFlipCount = 0;
+
   private async onOnlineState(
     state: GameState,
     clock: ClockState,
@@ -310,6 +320,10 @@ export class App {
     chainCount: number,
   ): Promise<void> {
     const before = this.state;
+    this.lastFlipCount =
+      lastMove?.kind === 'drop'
+        ? previewDrop(before, lastMove.piece, lastMove.to).flips.length
+        : 0;
     this.clock = clock;
     this.clockAt = Date.now();
     this.selection = { kind: 'none' };
@@ -327,14 +341,20 @@ export class App {
       this.sound.play('move');
     }
 
+    if (lastMove) this.moveLog.push(formatMove(lastMove));
     this.state = state;
     this.justFlipped = [];
     this.render();
 
-    if (chainCount >= 3) {
-      this.view.showChainBanner(chainCount);
+    if (this.isBigTurn(chainCount, this.lastFlipCount)) {
+      this.view.showChainBanner(chainCount, this.lastFlipCount);
       this.sound.play('chain');
     }
+  }
+
+  /** 見せ場かどうか。連鎖が続いたか、一度に大量に寝返らせたか。 */
+  private isBigTurn(chainCount: number, flips: number): boolean {
+    return chainCount >= 3 || flips >= 4;
   }
 
   private onOnlineOver(message: Extract<MatchServerMessage, { type: 'over' }>): void {
@@ -359,6 +379,36 @@ export class App {
     this.clockTimer = window.setInterval(() => {
       if (this.clock) this.render();
     }, 500);
+  }
+
+  /** 棋譜をクリップボードにコピーする。大連鎖が出た対局を見せ合えるように。 */
+  private async shareKifu(): Promise<void> {
+    if (this.moveLog.length === 0) return;
+    const counts = countPieces(this.state.board);
+    const header = [
+      `# ${t('app.title')} ${this.moveLog.length}手`,
+      `# ${t('result.stats', {
+        sente: counts.sente,
+        gote: counts.gote,
+        chainSente: this.state.maxChainCount.sente,
+        chainGote: this.state.maxChainCount.gote,
+      })}`,
+    ].join('\n');
+    const text = `${header}\n${this.moveLog.join(' ')}\n`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.banner = t('share.copied');
+    } catch {
+      this.banner = t('share.failed');
+    }
+    this.render();
+    window.setTimeout(() => {
+      if (this.banner === t('share.copied') || this.banner === t('share.failed')) {
+        this.banner = null;
+        this.render();
+      }
+    }, 2500);
   }
 
   private toggleLang(): void {
@@ -388,6 +438,7 @@ export class App {
       previous = this.history.pop() ?? previous;
     }
     this.state = previous;
+    this.moveLog = this.moveLog.slice(0, previous.ply);
     this.selection = { kind: 'none' };
     this.lastMove = null;
     this.justFlipped = [];
@@ -405,6 +456,7 @@ export class App {
     this.ai.reset();
     this.state = initialGameState();
     this.history = [];
+    this.moveLog = [];
     this.selection = { kind: 'none' };
     this.lastMove = null;
     this.justFlipped = [];
@@ -471,6 +523,7 @@ export class App {
     else if (move.kind === 'move') this.sound.play(outcome.captured ? 'capture' : 'move');
 
     this.history.push(before);
+    this.moveLog.push(formatMove(move));
     this.selection = { kind: 'none' };
     this.lastMove = move.kind === 'pass' ? null : move.to;
 
@@ -484,8 +537,8 @@ export class App {
     this.justFlipped = outcome.flips;
     this.render();
 
-    if (outcome.chainCount >= 3) {
-      this.view.showChainBanner(outcome.chainCount);
+    if (this.isBigTurn(outcome.chainCount, outcome.flips.length)) {
+      this.view.showChainBanner(outcome.chainCount, outcome.flips.length);
       this.sound.play('chain');
     } else if (outcome.chainCount > 0 && !this.animate) {
       // 演出オフのときは1回だけ鳴らす
@@ -572,6 +625,14 @@ export class App {
     const justFlippedSet = new Set(justFlipped.map(indexOf));
     const lastIndex = this.lastMove ? indexOf(this.lastMove) : null;
 
+    // 王手がかかっている玉のマス。玉を取られたら即負けなので必ず見せる
+    const checkedKings = new Set<number>();
+    for (const color of ['sente', 'gote'] as const) {
+      if (!isInCheck(board, color)) continue;
+      const king = findKing(board, color);
+      if (king) checkedKings.add(indexOf(king));
+    }
+
     const cells: CellView[] = [];
     for (let index = 0; index < BOARD_SIZE * BOARD_SIZE; index += 1) {
       const piece = board[index] ?? null;
@@ -583,6 +644,7 @@ export class App {
         gain: gains.get(index) ?? null,
         justFlipped: justFlippedSet.has(index),
         last: lastIndex === index,
+        inCheck: checkedKings.has(index),
         guarded:
           piece !== null &&
           piece.type !== 'K' &&
@@ -620,6 +682,7 @@ export class App {
       turnColor: state.turn,
       hint: this.hint(animating),
       counts: `${counts.sente} : ${counts.gote}`,
+      share: counts.sente + counts.gote === 0 ? 0.5 : counts.sente / (counts.sente + counts.gote),
       confirmLabel: this.selection.kind === 'drop' && !animating ? t('action.confirm') : null,
       canUndo:
         this.mode !== 'online' && this.history.length > 0 && !animating && !this.thinking,
@@ -654,6 +717,8 @@ export class App {
     const { state } = this;
     if (state.result.kind !== 'playing') return resultReason(state.result);
     if (mustPass(state)) return t('hint.mustPass');
+    // 玉が取られたら即負け。逃げるか受けるかしないといけないことを知らせる
+    if (isInCheck(state.board, state.turn)) return t('hint.inCheck');
     if (this.mode === 'online' && this.onlinePlayers) {
       if (state.turn !== this.onlineColor) return t('online.waiting');
       if (this.selection.kind === 'none') return t('online.yourTurn');

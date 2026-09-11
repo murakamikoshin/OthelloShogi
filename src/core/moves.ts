@@ -20,7 +20,9 @@ import type {
 } from './types.ts';
 import { BOARD_SIZE, SQUARE_COUNT } from './rules.ts';
 import {
+  findKing,
   forwardOf,
+  indexOf,
   isInside,
   lastRankFor,
   pieceAt,
@@ -181,6 +183,31 @@ export function generateDropMoves(board: Board, hands: Hands, color: Color): Dro
     }
   }
   return moves;
+}
+
+/**
+ * そのマスが、指定した色の駒に狙われているか。
+ *
+ * 王手の表示にも、AI の玉の安全度の評価にも使う。
+ * このゲームは王手放置が合法なので「狙われている＝次に取られる」が直結する。
+ */
+export function isAttacked(board: Board, target: Pos, by: Color): boolean {
+  const index = indexOf(target);
+  for (let i = 0; i < SQUARE_COUNT; i += 1) {
+    const square = board[i];
+    if (!square || square.owner !== by) continue;
+    for (const to of destinationsFrom(board, posOf(i))) {
+      if (indexOf(to) === index) return true;
+    }
+  }
+  return false;
+}
+
+/** その色の玉が狙われているか（王手がかかっているか）。玉がいなければ false。 */
+export function isInCheck(board: Board, color: Color): boolean {
+  const king = findKing(board, color);
+  if (!king) return false;
+  return isAttacked(board, king, color === 'sente' ? 'gote' : 'sente');
 }
 
 /**
