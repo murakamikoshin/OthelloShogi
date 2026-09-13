@@ -250,6 +250,62 @@ export function mayFlipAt(board: Board, at: Pos, color: Color): boolean {
 }
 
 /**
+ * そのマスに打ったとき、**1段目だけで**何枚裏返るかを数える。
+ *
+ * 連鎖は追わず、盤の複製もしない。AI の評価関数が「次にどれだけ寝返らせられるか」を
+ * 大量に見積もるための軽い版（正確な結果が要るときは simulateDrop を使う）。
+ */
+export function countFlipsAt(
+  board: Board,
+  at: Pos,
+  color: Color,
+  ranges: FlipRanges = DEFAULT_FLIP_RANGES,
+  mode: FlipDirectionMode = FLIP_DIRECTION_MODE,
+  kingGuards: boolean = KING_GUARDS_NEIGHBORS,
+  wallAnchors: boolean = WALL_ANCHORS,
+): number {
+  if (board[at.row * BOARD_SIZE + at.col]) return 0;
+  if (!mayFlipAt(board, at, color)) return 0;
+
+  let total = 0;
+  // 打った駒は必ず不成なので、駒種ごとの利きをそのまま使う
+  for (const ray of flipRays('P', color, ranges, mode)) {
+    total += countRay(board, at, ray, color, kingGuards, wallAnchors);
+  }
+  return total;
+}
+
+/** scanRay と同じ判定を、配列を作らずに枚数だけ数える版。 */
+function countRay(
+  board: Board,
+  origin: Pos,
+  ray: FlipRay,
+  color: Color,
+  kingGuards: boolean,
+  wallAnchors: boolean,
+): number {
+  const [dr, dc] = ray.dir;
+  let row = origin.row + dr;
+  let col = origin.col + dc;
+  let distance = 1;
+  let run = 0;
+
+  while (distance <= ray.range) {
+    if (!isInside(row, col)) return wallAnchors ? run : 0;
+    const square = board[row * BOARD_SIZE + col] ?? null;
+    if (!square) return 0;
+    if (square.owner === color) return run;
+    if (square.type === 'K') return 0;
+    if (kingGuards && isKingGuarded(board, row, col, square.owner)) return 0;
+    run += 1;
+    row += dr;
+    col += dc;
+    distance += 1;
+  }
+  return 0;
+}
+
+/**
  * 反転後の駒を返す。
  * - 持ち主が打った側に変わる
  * - 同時に成る（歩→と、飛→竜、角→馬）

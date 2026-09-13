@@ -8,6 +8,10 @@ import type { GameState, Move } from '../core/index.ts';
 import { applyMoveWithDetail, indexOf, legalMoves, previewDrop } from '../core/index.ts';
 import { DEFAULT_WEIGHTS, MATE_SCORE, evaluate, type EvalWeights } from './evaluate.ts';
 
+// 置換表（同じ局面の結果を使い回す仕組み）も試したが、同じ持ち時間で
+// 到達する深さは変わらず、ノード数が7%減るだけだったので入れていない。
+// このゲームは打つ手が多く、同じ局面に戻ってくることが少ないため。
+
 export interface SearchOptions {
   /** 読む深さ（反復深化の上限） */
   readonly depth: number;
@@ -18,6 +22,12 @@ export interface SearchOptions {
   /** 乱数生成器（再現性のあるテストのために差し替えられる） */
   readonly random?: () => number;
   readonly weights?: EvalWeights;
+  /**
+   * 葉の評価に「次に作れる反転枚数」を含めるか。
+   * 含めると評価が14倍重くなるので、同じ持ち時間なら読みが2手ぶん浅くなる。
+   * どちらが強いかは実測で決める。
+   */
+  readonly flipPotential?: boolean;
 }
 
 export interface SearchResult {
@@ -38,6 +48,7 @@ interface Context {
   readonly weights: EvalWeights;
   readonly random: () => number;
   readonly noise: number;
+  readonly flipPotential: boolean;
 }
 
 /**
@@ -109,7 +120,7 @@ function search(
   if ((context.nodes & 0x3ff) === 0 && Date.now() > context.deadline) throw new Timeout();
 
   if (depth <= 0) {
-    let score = sign * evaluate(state, context.weights);
+    let score = sign * evaluate(state, context.weights, context.flipPotential);
     if (context.noise > 0) score += (context.random() * 2 - 1) * context.noise;
     return score;
   }
@@ -140,6 +151,7 @@ export function findBestMove(state: GameState, options: SearchOptions): SearchRe
     weights: options.weights ?? DEFAULT_WEIGHTS,
     random: options.random ?? Math.random,
     noise: options.noise ?? 0,
+    flipPotential: options.flipPotential ?? true,
   };
 
   const rootMoves = orderedMoves(state);
@@ -151,6 +163,7 @@ export function findBestMove(state: GameState, options: SearchOptions): SearchRe
     let alpha = -Infinity;
     let currentBest: Move | null = null;
     let currentScore = -Infinity;
+    let timedOut = false;
 
     try {
       for (const move of rootMoves) {
@@ -163,19 +176,22 @@ export function findBestMove(state: GameState, options: SearchOptions): SearchRe
         if (score > alpha) alpha = score;
       }
     } catch (error) {
-      if (error instanceof Timeout) break;
-      throw error;
+      if (!(error instanceof Timeout)) throw error;
+      timedOut = true;
     }
 
+    // 時間切れでも、その深さで何手か読めていればその結果を使う。
+    // 手は良さそうな順に並べてあるので、途中までの結果でも前の深さより信用できる。
     if (currentBest) {
       bestMove = currentBest;
       bestScore = currentScore;
-      reachedDepth = depth;
+      if (!timedOut) reachedDepth = depth;
       // 次の深さでは、今回の最善手から読み始める
       rootMoves.splice(rootMoves.indexOf(currentBest), 1);
       rootMoves.unshift(currentBest);
     }
 
+    if (timedOut) break;
     // 勝ち／負けが確定したらそれ以上読む意味がない
     if (Math.abs(bestScore) > MATE_SCORE / 2) break;
     if (Date.now() > context.deadline) break;

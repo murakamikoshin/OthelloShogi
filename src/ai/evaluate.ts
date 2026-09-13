@@ -15,10 +15,9 @@ import {
   destinationsFrom,
   findKing,
   indexOf,
+  countFlipsAt,
   isInside,
-  mayFlipAt,
   posOf,
-  simulateDrop,
 } from '../core/index.ts';
 
 /** 玉を取られたら決着なので、他のどの評価値よりも大きくしておく。 */
@@ -102,23 +101,21 @@ function shieldCount(board: Board, king: Pos, color: Color): number {
 }
 
 /**
- * その色が次に1手打ったときに作れる、最大の反転枚数。
+ * その色が次に1手打ったときに作れる、最大の反転枚数（1段目のみ）。
  *
  * 既定の FLIP_DIRECTION_MODE='all8' では、どの駒種を打っても挟み判定の方向は同じなので、
  * マスごとに1回だけ調べれば足りる。
+ * 連鎖まで追うと評価が14倍重くなり、そのぶん読みが浅くなって逆に弱くなるので、
+ * ここでは1段目だけを数える軽い版を使う（実測で決めた）。
  */
 export function bestDropGain(state: GameState, color: Color): number {
   const hand = state.hands[color];
-  const piece = hand.P > 0 ? 'P' : hand.R > 0 ? 'R' : hand.B > 0 ? 'B' : null;
-  if (!piece) return 0;
+  if (hand.P + hand.R + hand.B === 0) return 0;
 
   let best = 0;
   for (let index = 0; index < SQUARE_COUNT; index += 1) {
     if (state.board[index]) continue;
-    const pos = posOf(index);
-    // 隣に相手の駒が無いマスは調べるだけ無駄
-    if (!mayFlipAt(state.board, pos, color)) continue;
-    const gain = simulateDrop(state.board, pos, piece, color).flips.length;
+    const gain = countFlipsAt(state.board, posOf(index), color);
     if (gain > best) best = gain;
   }
   return best;

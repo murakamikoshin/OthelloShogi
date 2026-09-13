@@ -22,7 +22,8 @@
     "onlinetest": "node tools/onlinetest.mjs",
     "analyze": "node --experimental-strip-types tools/analyze.ts",
     "report": "node --experimental-strip-types tools/report.mjs",
-    "sweep": "node tools/sweep.mjs"
+    "sweep": "node tools/sweep.mjs",
+    "playtest": "node --experimental-strip-types tools/playtest.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260910.1",
