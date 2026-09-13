@@ -17,12 +17,14 @@ const RULES = new URL('../src/core/rules.ts', import.meta.url);
 /** 比べたい案。`set` は rules.ts の定数の書き換え。 */
 const VARIANTS = [
   { name: '現状', set: {} },
-  { name: '壁アンカー', set: { WALL_ANCHORS: 'true' } },
-  { name: '打った駒も出世(3枚)', set: { PROMOTE_DROP_AT: '3' } },
-  { name: '壁+出世', set: { WALL_ANCHORS: 'true', PROMOTE_DROP_AT: '3' } },
-  { name: '連鎖上限3', set: { MAX_CHAIN: '3' } },
-  { name: '60手で駒数決着', set: { PLY_LIMIT: '60' } },
-  { name: '壁+60手', set: { WALL_ANCHORS: 'true', PLY_LIMIT: '60' } },
+  // 駒の個性を反転にも戻す案。本来の利きの方向だけ距離無制限、それ以外は1マス
+  { name: '他方向は1マスだけ', set: { STEP_FLIP_RANGE: '1' } },
+  // 盤を狭める案。壁が増えるので壁アンカーの効きが変わるはず
+  { name: '5x5 盤', set: { BOARD_SIZE: '5' } },
+  // 壁ルールが入った今、玉ガードはまだ要るのか
+  { name: '玉ガード無し', set: { KING_GUARDS_NEIGHBORS: 'false' } },
+  // 連鎖の上限に当たっている（5連鎖が0.3%出ている）ので緩めてみる
+  { name: '連鎖上限8', set: { MAX_CHAIN: '8' } },
 ];
 
 const original = readFileSync(RULES, 'utf8');
