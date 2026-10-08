@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 const WORKER = process.env.WORKER_URL ?? 'http://localhost:8787';
 
 export default defineConfig({
+  // koshinstudio.com/play/negaeri-shogi/ の下で配るので、相対の指定にする
+  base: './',
   server: {
     proxy: {
       // /api は Cloudflare Workers 側に流す。WebSocket もそのまま通す

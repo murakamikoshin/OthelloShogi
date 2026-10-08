@@ -22,6 +22,9 @@ import type { Env } from './env.ts';
 export { MatchRoom } from './match.ts';
 export { Lobby } from './lobby.ts';
 
+/** 画面を置く場所（koshinstudio.com 側）。API もこの下に出すので、頭を外して扱う。 */
+const MOUNT = '/play/negaeri-shogi';
+
 /** ランキングをキャッシュしておく秒数。 */
 const RANKING_CACHE_SECONDS = 60;
 
@@ -148,9 +151,18 @@ async function getRanking(request: Request, env: Env, ctx: ExecutionContext): Pr
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const path = url.pathname;
+    // koshinstudio.com/play/negaeri-shogi/ の下に置くときは、頭の部分を外して見る
+    const path = url.pathname.startsWith(MOUNT) ? url.pathname.slice(MOUNT.length) : url.pathname;
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
+
+    // /api/ 以外は、画面（dist）をそのまま返す。末尾の / が無いと相対指定がずれるので足す
+    if (!path.startsWith('/api/')) {
+      if (url.pathname === MOUNT) return Response.redirect(`${url.origin}${MOUNT}/${url.search}`, 301);
+      const assetUrl = new URL(url);
+      assetUrl.pathname = path === '' ? '/' : path;
+      return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+    }
 
     try {
       if (path === '/api/players' && request.method === 'POST') {

@@ -8,6 +8,8 @@ export interface Env {
   readonly MATCH: DurableObjectNamespace;
   /** マッチング待ちの行列を持つ Durable Object（インスタンスは1個だけ使う） */
   readonly LOBBY: DurableObjectNamespace;
+  /** 画面（dist）の配信 */
+  readonly ASSETS: Fetcher;
   /** 署名トークンの秘密鍵。`npx wrangler secret put TOKEN_SECRET` で設定する */
   readonly TOKEN_SECRET: string;
 }

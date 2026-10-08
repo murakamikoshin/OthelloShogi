@@ -17,7 +17,7 @@
     "ogp": "node tools/ogp.mjs",
     "servertest": "node --experimental-strip-types tools/servertest.mjs",
     "worker:dev": "wrangler dev --local",
-    "worker:deploy": "wrangler deploy",
+    "worker:deploy": "vite build && wrangler deploy",
     "db:init": "wrangler d1 execute negaeri --file=worker/schema.sql --local",
     "onlinetest": "node tools/onlinetest.mjs",
     "analyze": "node --experimental-strip-types tools/analyze.ts",
