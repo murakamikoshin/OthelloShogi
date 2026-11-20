@@ -900,3 +900,24 @@ button.ghost {
   text-align: center;
   margin: 12px 0;
 }
+
+/* ---------- 遊び方・このゲームについて（index.html に直に書いてある文章） ----------
+   盤（#app）の下に続く、読むための節。色は上の変数を使うので、暗い配色にも付いてくる */
+.about {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 28px 16px calc(40px + env(safe-area-inset-bottom));
+  border-top: 1px solid color-mix(in srgb, var(--ink-soft) 30%, transparent);
+  line-height: 1.8;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.about h2 { font-size: 19px; margin: 0 0 10px; }
+.about h3 { font-size: 16px; margin: 24px 0 6px; }
+.about p { margin: 0 0 10px; }
+.about ol, .about ul { margin: 0 0 10px; padding-left: 1.4em; }
+.about li { margin-bottom: 4px; }
+.about a { color: var(--accent); }
+.about__links { list-style: none; padding: 0 !important; }
+.about__links li { margin: 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
+.about__links a { display: block; padding: 12px 2px; text-decoration: none; font-weight: 600; }
